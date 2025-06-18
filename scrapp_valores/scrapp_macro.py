@@ -1,6 +1,6 @@
 import requests
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class ScrappMacro():
@@ -53,11 +53,16 @@ class ScrappMacro():
 
                 print(dados_historicos)
 
+            self.logger.info(
+                "Coleta de dados históricos efetuada com sucesso.")
+
         except Exception as e:
             self.logger.error(
-                f"Erro ao obter o IPCA: {e}")
+                f"Não foi possível obter o histórico de dados macro econômicos: {e}")
 
     def busca_dados_macro_atuais(self, coleta_diaria):
+
+        self.logger.info("Coletando dados diários...")
 
         def precisa_verificar(indicador):
             hoje = datetime.today().date()
@@ -77,45 +82,50 @@ class ScrappMacro():
             return regras.get(indicador, False)
 
         try:
-            query = "SELECT COUNT(*) FROM macroeconomia;"
-            dados = self.db.fetch_data(query, tipo_fetch="one")
+            # alguns dados devem ser coletados apenas ao final do dia: IPCA e SELIC por ex
+            dados_atuais = {
+                "selic": self.buscar_selic(atual=True),
+                "ipca": self.buscar_ipca(atual=True),
+                "dolar": self.buscar_dolar(days=1),
+                "juros_eua": self.busca_juros_eua(atual=True),
+                "ibovespa": self.busca_ibovespa(atual=True),
+                "juros_eua": self.busca_juros_eua(atual=True)
+            }
 
-            if dados and dados[0] == 0:
+            print(dados_atuais)
 
-                dados_historicos = {
-                    "selic": self.buscar_selic(atual=True),
-                    "ipca": self.buscar_ipca(atual=True),
-                    "dolar": self.buscar_dolar(days=1),
-                    "juros_eua": self.busca_juros_eua(atual=True),
-                    "ibovespa": self.busca_ibvespa(atual=True),
-                    "juros_eua": self.busca_juros_eua(atual=True)
-                }
-
-                # print(dados_historicos)
+            self.logger.info("Dados diários coletados com sucesso!")
 
         except Exception as e:
             self.logger.error(
-                f"Erro ao obter o IPCA: {e}")
+                f"Não foi possível coletar os dados diários: {e}")
 
     def buscar_ipca(self, atual=True):
         # URL da API do Banco Central parao IPCA
 
         try:
+
             if atual:
-                start_date = datetime.today()
-                start_date = start_date.strftime("%Y-%m-%d")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial="+start_date
+                only_date = datetime.today()
+                only_date = only_date.strftime("%d/%m/%Y")
+                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=" + \
+                    only_date+"&dataFinal="+only_date
             else:
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/ultimos/10?formato=json"
+                final_date = datetime.today()
+                start_date = final_date - timedelta(days=10*365)
+                final_date = final_date.strftime("%d/%m/%Y")
+                start_date = start_date.strftime("%d/%m/%Y")
+                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/?formato=json&dataInicial=" + \
+                    start_date+"&dataFinal="+final_date
 
             response = requests.get(url)
             dados = response.json()
-            ipca_filtrado = [{"data": item["data"],
-                              "valor": float(item["valor"])} for item in dados]
+
+            self.logger.info(f"IPCA: {dados}")
 
             self.logger.info(f"IPCA obtido com sucesso.")
 
-            return ipca_filtrado
+            return dados
 
         except Exception as e:
             self.logger.error(
@@ -147,21 +157,27 @@ class ScrappMacro():
         # URL da API do Banco Central para a taxa Selic
         try:
             if atual:
-                start_date = datetime.today()
-                start_date = start_date.strftime("%Y-%m-%d")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial="+start_date
+                only_date = datetime.today()
+                only_date = only_date.strftime("%d/%m/%Y")
+                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=" + \
+                    only_date+"&dataFinal="+only_date
             else:
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/ultimos/10?formato=json"
+                final_date = datetime.today()
+                start_date = final_date - timedelta(days=10*365)
+                final_date = final_date.strftime("%d/%m/%Y")
+                start_date = start_date.strftime("%d/%m/%Y")
+                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/?formato=json&dataInicial=" + \
+                    start_date+"&dataFinal="+final_date
 
+            self.logger.info(f"URL: {url}")
             response = requests.get(url)
             dados = response.json()
 
-            selic_filtrado = [{"data": item["data"],
-                               "valor": float(item["valor"])} for item in dados]
-
             self.logger.info(f"SELIC obtido com sucesso.")
 
-            return selic_filtrado
+            self.logger.info(f"SELIC: {dados}")
+
+            return dados
 
         except Exception as e:
             self.logger.error(
@@ -204,15 +220,15 @@ class ScrappMacro():
         try:
             if atual:
                 start_date = datetime.today()
-                start_date = start_date.strftime("%Y-%m-%d")
+                only_date = start_date.strftime("%Y-%m-%d")
+                url = f"https://api.stlouisfed.org/fred/series_observations?series_id=FEDFUNDS&api_key={'f308c54585d765845e4c89ca7a010c3a'}&file_type=json&observation_start={only_date}&observation_end={only_date}"
             else:
-                data_inicial = datetime.today()
-                final_date = data_inicial.strftime("%Y-%m-%d")
-                data_inicial = data_inicial.replace(
-                    year=data_inicial.year - 10)
-                start_date = data_inicial.strftime("%Y-%m-%d")
+                hoje = datetime.today()
+                final_date = hoje.strftime("%Y-%m-%d")
+                start_date = hoje - timedelta(years=10)
+                start_date = start_date.strftime("%Y-%m-%d")
+                url = f"https://api.stlouisfed.org/fred/series_observations?series_id=FEDFUNDS&api_key={'f308c54585d765845e4c89ca7a010c3a'}&file_type=json&observation_start={start_date}&observation_end={final_date}"
 
-            url = f"https://api.stlouisfed.org/fred/series_observations?series_id=FEDFUNDS&api_key={f308c54585d765845e4c89ca7a010c3a}&file_type=json&observation_start={start_date}&observation_end={final_date}"
             response = requests.get(url)
             dados_fed = response.json()
 

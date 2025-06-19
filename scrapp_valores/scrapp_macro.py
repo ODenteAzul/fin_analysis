@@ -1,6 +1,8 @@
 import requests
 import yfinance as yf
 from datetime import datetime, timedelta
+from scrapp_valores.sgs_data import APIData
+from dateutil.relativedelta import relativedelta
 
 
 class ScrappMacro():
@@ -47,7 +49,7 @@ class ScrappMacro():
                 dados_historicos = {
                     "selic": self.buscar_selic(atual=False),
                     "ipca": self.buscar_ipca(atual=False),
-                    "dolar": self.buscar_dolar(days=3650),
+                    "dolar": self.buscar_dolar(atual=False),
                     "juros_eua": self.busca_juros_eua(atual=False)
                 }
 
@@ -86,7 +88,7 @@ class ScrappMacro():
             dados_atuais = {
                 "selic": self.buscar_selic(atual=True),
                 "ipca": self.buscar_ipca(atual=True),
-                "dolar": self.buscar_dolar(days=1),
+                "dolar": self.buscar_dolar(atual=True),
                 "juros_eua": self.busca_juros_eua(atual=True),
                 "ibovespa": self.busca_ibovespa(atual=True),
                 "juros_eua": self.busca_juros_eua(atual=True)
@@ -101,87 +103,99 @@ class ScrappMacro():
                 f"Não foi possível coletar os dados diários: {e}")
 
     def buscar_ipca(self, atual=True):
-        # URL da API do Banco Central parao IPCA
+        # URL da API do Banco Central para o IPCA -> sgs code 433
 
         try:
-
             if atual:
                 only_date = datetime.today()
                 only_date = only_date.strftime("%d/%m/%Y")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=" + \
-                    only_date+"&dataFinal="+only_date
+                url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial={only_date}&dataFinal={only_date}"
+                self.logger.info(
+                    f"Iniciando coleta do IPCA dos últimos 10 anos.")
             else:
                 final_date = datetime.today()
                 start_date = final_date - timedelta(days=10*365)
                 final_date = final_date.strftime("%d/%m/%Y")
                 start_date = start_date.strftime("%d/%m/%Y")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/?formato=json&dataInicial=" + \
-                    start_date+"&dataFinal="+final_date
+                url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial={start_date}&dataFinal={final_date}"
+                self.logger.info(f"Iniciando coleta do IPCA atual.")
 
-            response = requests.get(url)
-            dados = response.json()
+            self.logger.info(f"URL gerada para IPCA: {url}")
 
-            self.logger.info(f"IPCA: {dados}")
+            sgs = APIData(self.logger)
+
+            df_ipca = sgs.get_from_api(url, ['data', 'valor'])
 
             self.logger.info(f"IPCA obtido com sucesso.")
 
-            return dados
+            return df_ipca
 
         except Exception as e:
             self.logger.error(
-                f"Erro ao obter o IPCA: {e}")
+                f"Erro ao obter dados do IPCA: {e}")
             return None
 
     # URL da API para taxa de câmbio
-    def buscar_dolar(self, days=1):
+    def buscar_dolar(self, atual=True):
 
         try:
-            if days == 1:
+            if atual:
                 url = "https://economia.awesomeapi.com.br/json/last/USD-BRL"
+                self.logger.info(
+                    f"Iniciando coleta do Dólar atual")
             else:
-                url = "https://economia.awesomeapi.com.br/json/daily/USD-BRL/3650"
+                dias_passados = (
+                    datetime.today() - (datetime.today() - relativedelta(years=10))).days
+                url = f"https://economia.awesomeapi.com.br/json/daily/USD-BRL/{dias_passados}"
+                self.logger.info(
+                    f"Iniciando coleta do Dólar dos últimos 10 anos.")
 
-            response = requests.get(url)
-            dados = response.json()
+            self.logger.info(f"URL gerada para IPCA: {url}")
 
-            self.logger.info(f"Dólar obtido com sucesso.")
+            sgs = APIData(self.logger)
 
-            return dados
+            df_ipca = sgs.get_from_api(url, ['data', 'valor'])
+
+            self.logger.info(f"IPCA obtido com sucesso.")
+
+            return df_ipca
 
         except Exception as e:
             self.logger.error(
-                f"Erro ao obter o Dólar: {e}")
+                f"Erro ao obter dados do IPCA: {e}")
             return None
 
     def buscar_selic(self, atual=True):
-        # URL da API do Banco Central para a taxa Selic
+       # URL da API do Banco Central para o SELIC -> sgs code 11
+
         try:
             if atual:
                 only_date = datetime.today()
                 only_date = only_date.strftime("%d/%m/%Y")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=" + \
-                    only_date+"&dataFinal="+only_date
+                url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial={only_date}&dataFinal={only_date}"
+                self.logger.info(
+                    f"Iniciando coleta da SELIC dos últimos 10 anos.")
             else:
                 final_date = datetime.today()
                 start_date = final_date - timedelta(days=10*365)
                 final_date = final_date.strftime("%d/%m/%Y")
                 start_date = start_date.strftime("%d/%m/%Y")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados/?formato=json&dataInicial=" + \
-                    start_date+"&dataFinal="+final_date
+                url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial={start_date}&dataFinal={final_date}"
+                self.logger.info(f"Iniciando coleta da SELIC atual")
 
-            self.logger.info(f"URL: {url}")
-            response = requests.get(url)
-            dados = response.json()
+            self.logger.info(f"URL gerada para SELIC: {url}")
 
-            self.logger.info(f"SELIC obtido com sucesso.")
+            sgs = APIData(self.logger)
 
-            self.logger.info(f"SELIC: {dados}")
+            df_ipca = sgs.get_from_api(url, ['data', 'valor'])
 
-            return dados
+            self.logger.info(f"IPCA obtido com sucesso.")
+
+            return df_ipca
 
         except Exception as e:
             self.logger.error(
-                f"Erro ao obter a SELIC: {e}")
+                f"Erro ao obter dados do SELIC: {e}")
             return None
 
     def busca_ibovespa(self, atual=True):

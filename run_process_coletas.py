@@ -1,4 +1,4 @@
-from utils import LoggerCustomizado
+from utils.utils import LoggerCustomizado
 from conn_pg import PostGreSQL
 from datetime import datetime, time
 from scrapp_noticias.run_scrapping import Scrapper
@@ -19,9 +19,9 @@ def run_processes():
 
     # horários de controle para ações
     hora_abertura_bolsa = time(10, 0, 0)
-    hora_fechamento_bolsa = time(16, 57, 0)
-    dolar_inicio = time(9, 0, 0)
-    dolar_fim = time(17, 2, 0)
+    hora_fechamento_bolsa = time(17, 57, 0)
+    dolar_inicio = time(0, 0, 0)
+    dolar_fim = time(17, 55, 0)
     novo_dia = time(1, 0, 0)
     coleta_diaria_macro = time(23, 0, 0)
 

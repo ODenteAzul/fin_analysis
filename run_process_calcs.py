@@ -1,4 +1,4 @@
-from utils import LoggerCustomizado
+from utils.utils import LoggerCustomizado
 from conn_pg import PostGreSQL
 from datetime import datetime, time
 from indices.run_technical_indexes import TechCalcs

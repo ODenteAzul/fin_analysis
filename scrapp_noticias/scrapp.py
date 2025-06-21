@@ -241,7 +241,7 @@ class Scrapping():
                             dolar_fim):
 
         self.logger.info(
-            "Verificando o horários...")
+            "Verificando o horários para cotação atual...")
 
         hora_atual = datetime.now().time()
 
@@ -292,20 +292,35 @@ class Scrapping():
                 db=self.db,
                 conn=self.conn,
                 cursor=self.cursor)
-            dolar = scraper.buscar_dolar()
 
-            query = "INSERT INTO dolar_diario (data_historico, bid, ask, high, low, varBid, pctChange) VALUES (%s,%s,%s,%s,%s,%s,%s)"
-            valores = (datetime.now(), dolar["USDBRL"]["bid"], dolar["USDBRL"]["ask"], dolar["USDBRL"]
-                       ["high"], dolar["USDBRL"]["low"], dolar["USDBRL"]["varBid"], dolar["USDBRL"]["pctChange"])
+            df_dolar = scraper.buscar_dolar(atual=True)
+
+            self.logger.info(f"Salvando a cotaçao do Dólar...")
 
             try:
+                # Garante que as colunas estão na ordem correta
+                colunas = ['data', 'bid', 'ask', 'high',
+                           'low', 'varBid', 'pctChange']
+                df_insert = df_dolar[colunas].copy()
+
+                df_insert['data'] = pd.to_datetime(df_insert['data'])
+
+                valores = tuple(df_dolar.iloc[0][[
+                                'data', 'bid', 'ask', 'high', 'low', 'varBid', 'pctChange']])
+
+                query = """
+                INSERT INTO dolar_diario (
+                    data_historico, bid, ask, high, low, varBid, pctChange
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+
                 self.db.executa_query(query, valores, commit=True)
 
-                self.logger.info(f"Dados do Dolar gravados.")
+                self.logger.info(f"Dados do Dolar gravados com sucesso.")
 
             except Exception as e:
                 self.logger.error(
-                    f"Houve um problema ao obter os valores na bolsa: {e}")
+                    f"Houve um problema ao salvar os valores do Dólar: {e}")
                 raise
 
         else:

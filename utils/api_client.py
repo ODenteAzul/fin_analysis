@@ -18,8 +18,9 @@ class APIDataParser():
 
     def clean_metadata(self, json_data):
         """
-        Removes uncommon or irregular keys, typically metadata...
-        keeping only data that will, for example, compose the DataFrame
+        Removes uncommon or inconsistent keys from a list of dictionaries,
+        retaining only the keys common to all items. Useful for filtering metadata
+        and preserving only the data structure suitable for tabular representation.
 
         Parameters
         ----------
@@ -58,13 +59,15 @@ class APIDataParser():
             The HTTP response object returned from a `requests.get()` or similar call.
 
         is_list : bool
-            Indicates whether the expected JSON format is a list (True) or an encapsulated object (False).
+            If True, expects the JSON response to be a list of dictionaries.
+            If False, expects a nested object from which data will be extracted.
 
         Returns
         -------
         list of dict or None
-            A list of dictionaries extracted from the response if valid and non-empty.
-            Returns None if the response is empty, malformed, or doesn't match the expected structure.
+            A list containing the parsed JSON content. If `is_list` is False,
+            returns a single dictionary inside a list. Returns None if the structure
+            is invalid or parsing fails.
 
         Raises
         ------
@@ -128,17 +131,18 @@ class APIDataParser():
             List of records returned by the API in JSON format.
 
         cols : list of str, optional
-            List of desired columns. If None, it will take all common coluns across records.
+            List of desired columns. If None, it will take all common columns across records.
 
         convert_timestamp : bool, default=True
-            If True. converts the 'timestamp' column (if present) to a human-readable date column.
+            If True, converts the 'timestamp' column (if present) to a human-readable date column.
 
         sanitize : bool, default=True
             If True, removes columns that are completely Null and fills null values in numeric columns with zeros.
 
-        frequency : str or None, default=None
-            Time series frequency: 'daily', 'monthly', 'quarterly' or 'auto' for automatic inference.
-            If None, there will be no transformation applied.
+        frequency : str or None, default='daily'
+            Desired frequency transformation for time series:
+            'daily', 'monthly', 'quarterly', or 'auto' (infer from data).
+            If None, no transformation is applied.
 
         col_freq : str, default='date'
             Temporal column to be used to obtain frequency.
@@ -244,7 +248,8 @@ class APIDataParser():
             List of keys/columns to extract from the JSON payload.
 
         is_list : bool
-            Indicates whether the response JSON is a top-level list (False) or a nested object (True).
+            If True, the response JSON is expected to be a list of dicts.
+            If False, expects a nested dictionary format.
 
         convert_timestamp : bool, default=True
             If True, converts a 'timestamp' column (if present) to human-readable dates.
@@ -264,7 +269,7 @@ class APIDataParser():
         Returns
         -------
         pd.DataFrame or None
-            Parsed DataFrame with preprocessing applied, or None if the request or parsing fails.
+            A processed DataFrame if successful, otherwise None.
         """
 
         try:

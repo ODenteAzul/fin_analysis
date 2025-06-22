@@ -1,6 +1,7 @@
 from utils.utils import LoggerCustomizado
 from conn_pg import PostGreSQL
-from datetime import datetime, time
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from scrapp_noticias.run_scrapping import Scrapper
 from scrapp_valores.run_macroeco import MacroEconomics
 
@@ -12,20 +13,12 @@ def run_processes():
     db = PostGreSQL(logger=log)
     conn, cursor = db.conectar()
 
-    hora_inicio_geral = datetime.now().time()
-    dia_atual = datetime.now().date()
+    tz_brasil = ZoneInfo("America/Sao_Paulo")
+    hora_inicio_geral = datetime.now(tz=tz_brasil)
 
     log.info(f"Iniciando os processos: '{hora_inicio_geral}'")
 
-    # horários de controle para ações
-    hora_abertura_bolsa = time(10, 0, 0)
-    hora_fechamento_bolsa = time(17, 57, 0)
-    dolar_inicio = time(0, 0, 0)
-    dolar_fim = time(17, 55, 0)
-    novo_dia = time(1, 0, 0)
-    coleta_diaria_macro = time(23, 0, 0)
-
-    hora_inicio = datetime.now()
+    hora_inicio = datetime.now(tz=tz_brasil)
 
     log.info("Etapa 1: Scrapping de informações...")
 
@@ -41,7 +34,7 @@ def run_processes():
     end_time = datetime.now()
     log.info(f"Etapa 1: Finalizada com sucesso, em: {end_time - hora_inicio}")
 
-    hora_inicio = datetime.now()
+    hora_inicio = datetime.now(tz=tz_brasil)
 
     log.info("Etapa 2: Coletando dados Macro Econômicos...")
 

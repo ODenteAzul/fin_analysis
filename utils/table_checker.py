@@ -1,3 +1,4 @@
+from typing import Union, Optional, Tuple
 
 
 class TableChecker():
@@ -123,6 +124,7 @@ class TableChecker():
         except Exception as e:
             self.logger.error(
                 f"Não foi possível verificar as tabelas: {e}")
+            raise
 
     def last_date(self, camada, tabela, campo_data):
 
@@ -181,26 +183,57 @@ class TableChecker():
                 f"Erro ao atualizar/inserir dados sobre tabelas populadas em: {camada}.{tabela}. Detalhes: {e}")
         return False
 
-    def check_populated(self, camada, tabela):
+    def check_populated(self, camada, tabela, resposta: str = 'bool') -> Union[bool, Optional[Tuple]]:
         """
         Verifica se a tabela já foi populada com base no controle em meta.controle_populacao.
 
+        args:
+            camada: str = o nome da camada = 'silver' ou 'gold'
+            tabela: str = o nome da tabela a ser validada
+            resposta: str = se 'bool': apenas verifica se a tabela consta populata
+                            se 'dados': devolve o registro completo sobre a tabela
+
         Returns
         -------
-        tuple or None
-            Retorna os dados do registro (se houver) ou None se não encontrado.
+            se resposta = 'bool' = bool presente no registro referente a essa tabela.
+            se resposta = 'dados' = tuple or None
+                Retorna os dados do registro (se houver) ou None se não encontrado.
         """
-        query = """
-            SELECT * FROM meta.controle_populacao
-            WHERE schema_nome = %s AND tabela_nome = %s;
-        """
+        if resposta not in ("bool", "dados"):
+            raise ValueError(
+                "O parâmetro 'resposta' deve ser 'bool' ou 'dados'.")
 
-        try:
-            dados = self.db.fetch_data(query=query, valores=(
-                camada, tabela), tipo_fetch="one")
-            return dados
+        if resposta == 'bool':
+            query = """
+                SELECT populado FROM meta.controle_populacao
+                WHERE schema_nome = %s AND tabela_nome = %s;
+            """
 
-        except Exception as e:
-            self.logger.error(
-                f"Falha ao validar população de {camada}.{tabela}. Detalhes: {e}")
-            return False
+            try:
+                dados = self.db.fetch_data(query=query, valores=(
+                    camada, tabela), tipo_fetch="one")
+                if dados and len(dados) > 0:
+                    return dados[0]
+                else:
+                    return False
+
+            except Exception as e:
+                self.logger.error(
+                    f"Falha ao validar população de {camada}.{tabela}. Detalhes: {e}")
+                return False
+
+        else:
+            query = """
+                SELECT * FROM meta.controle_populacao
+                WHERE schema_nome = %s AND tabela_nome = %s;
+            """
+
+            try:
+                dados = self.db.fetch_data(query=query, valores=(
+                    camada, tabela), tipo_fetch="one")
+                return dados
+
+            except Exception as e:
+                self.logger.error(
+                    f"Falha ao validar população de {camada}.{tabela}. Detalhes: {e}")
+                return False

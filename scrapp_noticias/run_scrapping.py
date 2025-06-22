@@ -1,4 +1,5 @@
 from scrapp_noticias.scrapp import Scrapping
+from utils.table_checker import TableChecker
 
 
 class Scrapper():
@@ -6,11 +7,13 @@ class Scrapper():
                  logger,
                  db,
                  conn,
-                 cursor):
+                 cursor,
+                 table_checker):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
+        self.table_checker = table_checker
 
     def executa_scrapping(self,
                           hora_atual,
@@ -25,11 +28,17 @@ class Scrapper():
             conn=self.conn,
             cursor=self.cursor)
 
+        tables = TableChecker(
+            logger=self.logger,
+            db=self.db,
+            conn=self.conn,
+            cursor=self.cursor)
+
         try:
 
-            scrap.verifica_tabelas()
+            tables.check_tables()
 
-            scrap.busca_noticias_historicas()
+            scrap.busca_noticias_historicas(table_checker=self.table_checker)
 
             # scrap.buscar_noticias()
 

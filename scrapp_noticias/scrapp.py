@@ -17,11 +17,13 @@ class Scrapping():
                  logger,
                  db,
                  conn,
-                 cursor):
+                 cursor,
+                 table_checker):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
+        self.table_checker = table_checker
 
     def verifica_tabelas(self):
 
@@ -42,20 +44,6 @@ class Scrapping():
                 media_movel_200 NUMERIC(10,2),
                 UNIQUE (cod_bolsa, data_historico)
             );
-        """
-
-        self.db.executa_query(query, commit=True)
-
-        query = """
-            CREATE TABLE IF NOT EXISTS noticias (
-                id SERIAL PRIMARY KEY,
-                cod_bolsa TEXT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                titulo TEXT,
-                descricao TEXT,
-                data_historico DATE NOT NULL,
-                url TEXT,
-                sentimento TEXT);
         """
 
         self.db.executa_query(query, commit=True)
@@ -87,7 +75,7 @@ class Scrapping():
 
         self.logger.info("Tabelas verificadas.")
 
-    def converter_para_nativo(df):
+    def _converter_para_nativo(df):
         """
         Converte colunas numéricas do DataFrame para tipos nativos do Python (float).
         """
@@ -98,7 +86,7 @@ class Scrapping():
 
         return df
 
-    def titulos_sao_similares(self, titulo1, titulo2, limite=60):
+    def _titulos_sao_similares(self, titulo1, titulo2, limite=60):
         try:
             if isinstance(titulo1, str) and isinstance(titulo2, str):
                 return fuzz.ratio(titulo1.lower(), titulo2.lower()) > limite
@@ -110,7 +98,7 @@ class Scrapping():
                 f"Houve um problema ao testar a similaridades de títulos de notícias: {e}")
             raise
 
-    def verificar_similaridade(self, noticia1, noticia2):
+    def _verificar_similaridade(self, noticia1, noticia2):
         try:
             vetorizer = TfidfVectorizer()
             vetorizer = TfidfVectorizer(stop_words=None)
@@ -124,11 +112,11 @@ class Scrapping():
                 f"Houve um problema ao testar a similaridades do texto das notícias: {e}")
             raise
 
-    def verificar_relevancia(self, texto, palavra="Embraer", limite=0.005):
+    def _verificar_relevancia(self, texto, empresa, limite=0.005):
         try:
             if isinstance(texto, str):
                 total_palavras = len(texto.split())
-                freq_relativa = texto.lower().count(palavra.lower()) / max(total_palavras, 1)
+                freq_relativa = texto.lower().count(empresa.lower()) / max(total_palavras, 1)
 
                 return freq_relativa < limite
 
@@ -137,16 +125,16 @@ class Scrapping():
                 f"Houve um problema aoverificar a relevância da notícia {e}")
             raise
 
-    def verificar_noticia(self, titulo, texto, noticias_salvas):
+    def _verificar_noticia(self, titulo, texto, noticias_salvas, empresa):
         for noticia in noticias_salvas:
             if texto == "texto_indisponivel":
-                if self.titulos_sao_similares(titulo, noticia["titulo"]) or self.verificar_relevancia(titulo):
+                if self._titulos_sao_similares(titulo, noticia["titulo"]) or self._verificar_relevancia(titulo, empresa):
                     self.logger.info(
                         "Notícia duplicada ou não relevante encontrada. Ignorando...")
                     return False
             else:
                 if isinstance(noticia["titulo"], str) and isinstance(noticia["texto"], str):
-                    if self.titulos_sao_similares(titulo, noticia["titulo"]) or self.verificar_similaridade(texto, noticia["texto"]) > 0.70 or self.verificar_relevancia(texto):
+                    if self._titulos_sao_similares(titulo, noticia["titulo"]) or self._verificar_similaridade(texto, noticia["texto"]) > 0.70 or self._verificar_relevancia(texto):
                         self.logger.info(
                             "Notícia duplicada ou não relevante encontrada. Ignorando...")
                         return False
@@ -327,7 +315,7 @@ class Scrapping():
             self.logger.info(
                 "Fora do horário de coleta do Dólar.")
 
-    def obter_texto_noticia(self, url):
+    def _obter_texto_noticia(self, url):
 
         if not isinstance(url, str):
             self.logger.error(f"Erro: URL inválida recebida {url}")
@@ -426,104 +414,107 @@ class Scrapping():
 
         return texto_noticia
 
-    def busca_noticias_historicas(self):
+    def busca_noticias_historicas(self, ls_empresas):
 
-        # **Coletar notícias históricas (somente na primeira execução)**
+        # **Coletar notícias históricas (somente se tabela não estiver populada)**
         self.logger.info("Vericando presença de notícias históricas... ")
 
         try:
-            query = "SELECT COUNT(*) FROM noticias;"
-            dados = self.db.fetch_data(query, tipo_fetch="one")
 
-            if dados and dados[0] == 0:
-
-                self.logger.info(f"Buscando notícias inicias para: 'EMBR3.SA'")
-
-                data_inicial = datetime.today().replace(day=1)
-                data_final = data_inicial.replace(year=data_inicial.year - 10)
-                while data_inicial >= data_final:
-                    start_date = data_inicial.strftime("%Y-%m-%d")
-                    from calendar import monthrange
-                    end_date = data_inicial.replace(day=monthrange(
-                        data_inicial.year, data_inicial.month)[1]).strftime("%Y-%m-%d")
+            for sigla, nome in ls_empresas:
+                if not self.table_checker.check_populated(camada='silver', tabela='silver', empresa=sigla, resposta='bool'):
 
                     self.logger.info(
-                        f"Buscando notícias de {start_date} até {end_date}")
+                        f"Buscando notícias inicias para: '{nome}:{sigla}'")
 
-                    filtros = Filters(
-                        keyword="Embraer",
-                        start_date=start_date,
-                        end_date=end_date,
-                        num_records=100,
-                        language='portuguese'
-                    )
+                    data_inicial = datetime.today().replace(day=1)
+                    data_final = data_inicial.replace(
+                        year=data_inicial.year - 10)
+                    while data_inicial >= data_final:
+                        start_date = data_inicial.strftime("%Y-%m-%d")
+                        from calendar import monthrange
+                        end_date = data_inicial.replace(day=monthrange(
+                            data_inicial.year, data_inicial.month)[1]).strftime("%Y-%m-%d")
 
-                    # Criar instância do cliente GDELT
-                    gdelt = GdeltDoc()
-                    # Buscar artigos que correspondem aos filtros
-                    artigos = gdelt.article_search(filtros)
+                        self.logger.info(
+                            f"Buscando notícias de {start_date} até {end_date}")
 
-                    noticias_salvas = []
-                    # Exibir os resultados
-                    for artigo in artigos.itertuples():
-                        noticia = {}
+                        filtros = Filters(
+                            keyword=nome,
+                            start_date=start_date,
+                            end_date=end_date,
+                            num_records=100,
+                            language='portuguese'
+                        )
 
-                        texto_noticia = self.obter_texto_noticia(artigo.url)
+                        # Criar instância do cliente GDELT
+                        gdelt = GdeltDoc()
+                        # Buscar artigos que correspondem aos filtros
+                        artigos = gdelt.article_search(filtros)
 
-                        if artigo.title:
-                            if texto_noticia.strip() and texto_noticia != "texto_indisponivel":
-                                if isinstance(artigo.title, str) and isinstance(texto_noticia, str) and texto_noticia != "":
-                                    if self.verificar_noticia(artigo.title, texto_noticia, noticias_salvas):
-                                        self.logger.info(
-                                            f"Título: {artigo.title}")
-                                        noticia = {
-                                            "titulo": artigo.title,
-                                            "texto": texto_noticia
-                                        }
+                        noticias_salvas = []
+                        # Exibir os resultados
+                        for artigo in artigos.itertuples():
+                            noticia = {}
 
-                                        query = "INSERT INTO noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
-                                        valores = ('EMBR3.SA', artigo.title, texto_noticia, datetime.strptime(
-                                            artigo.seendate, '%Y%m%dT%H%M%SZ').date(), artigo.url)
+                            texto_noticia = self._obter_texto_noticia(
+                                artigo.url)
 
-                                        try:
-                                            self.db.executa_query(
-                                                query, valores, commit=True)
-                                        except Exception as e:
-                                            self.logger.error(
-                                                f"Erro ao inserir notícia: {artigo.title}. Detalhes: {e}")
-                                        finally:
-                                            noticias_salvas.append(noticia)
-                            else:
-                                if isinstance(artigo.title, str):
-                                    if self.verificar_noticia(artigo.title, texto_noticia, noticias_salvas):
-                                        self.logger.info(
-                                            f"Título: {artigo.title}")
-                                        noticia = {
-                                            "titulo": artigo.title,
-                                            "texto": texto_noticia
-                                        }
+                            if artigo.title:
+                                if texto_noticia.strip() and texto_noticia != "texto_indisponivel":
+                                    if isinstance(artigo.title, str) and isinstance(texto_noticia, str) and texto_noticia != "":
+                                        if self._verificar_noticia(artigo.title, texto_noticia, noticias_salvas, nome):
+                                            self.logger.info(
+                                                f"Título: {artigo.title}")
+                                            noticia = {
+                                                "titulo": artigo.title,
+                                                "texto": texto_noticia
+                                            }
 
-                                        query = "INSERT INTO noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
-                                        valores = ('EMBR3.SA', artigo.title, texto_noticia, datetime.strptime(
-                                            artigo.seendate, '%Y%m%dT%H%M%SZ').date(), artigo.url)
+                                            query = "INSERT INTO noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                                            valores = (sigla, artigo.title, texto_noticia, datetime.strptime(
+                                                artigo.seendate, '%Y%m%dT%H%M%SZ').date(), artigo.url)
 
-                                        try:
-                                            self.db.executa_query(
-                                                query, valores, commit=True)
-                                        except Exception as e:
-                                            self.logger.error(
-                                                f"Erro ao inserir notícia: {artigo.title}. Detalhes: {e}")
-                                        finally:
-                                            noticias_salvas.append(noticia)
+                                            try:
+                                                self.db.executa_query(
+                                                    query, valores, commit=True)
+                                            except Exception as e:
+                                                self.logger.error(
+                                                    f"Erro ao inserir notícia: {artigo.title}. Detalhes: {e}")
+                                            finally:
+                                                noticias_salvas.append(noticia)
+                                else:
+                                    if isinstance(artigo.title, str):
+                                        if self._verificar_noticia(artigo.title, texto_noticia, noticias_salvas, nome):
+                                            self.logger.info(
+                                                f"Título: {artigo.title}")
+                                            noticia = {
+                                                "titulo": artigo.title,
+                                                "texto": texto_noticia
+                                            }
 
-                    mes_anterior = (data_inicial.month - 1) or 12
-                    ano_atualizado = data_inicial.year if data_inicial.month > 1 else data_inicial.year - 1
-                    data_inicial = data_inicial.replace(
-                        year=ano_atualizado, month=mes_anterior)
+                                            query = "INSERT INTO noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                                            valores = (sigla, artigo.title, texto_noticia, datetime.strptime(
+                                                artigo.seendate, '%Y%m%dT%H%M%SZ').date(), artigo.url)
 
-                    self.logger.info(f"Notícias históricas cadastradas...")
-            else:
-                self.logger.info(f"Notícias históricos já presentes.")
+                                            try:
+                                                self.db.executa_query(
+                                                    query, valores, commit=True)
+                                            except Exception as e:
+                                                self.logger.error(
+                                                    f"Erro ao inserir notícia: {artigo.title}. Detalhes: {e}")
+                                            finally:
+                                                noticias_salvas.append(noticia)
+
+                        mes_anterior = (data_inicial.month - 1) or 12
+                        ano_atualizado = data_inicial.year if data_inicial.month > 1 else data_inicial.year - 1
+                        data_inicial = data_inicial.replace(
+                            year=ano_atualizado, month=mes_anterior)
+
+                        self.logger.info(
+                            f"Notícias históricas cadastradas para '{nome}:{sigla}'...")
+                else:
+                    self.logger.info(f"Notícias históricos já presentes.")
 
         except Exception as e:
             self.logger.error(
@@ -535,53 +526,56 @@ class Scrapping():
 
 # **Buscar notícias recentes e verificar duplicatas**
 
-    def buscar_noticias(self):
+    def buscar_noticias(self, ls_empresas):
 
-        self.logger.info(
-            f"Buscando notícias recentes para a empresa 'EMBR3.SA'")
+        for sigla, nome in ls_empresas:
+            self.logger.info(
+                f"Buscando notícias recentes para a empresa '{nome}:{sigla}'")
 
-        API_NEWS = "47f7a2378b0a4a6c9096689cf1956945"
-        url = f"https://newsapi.org/v2/everything?q=Embraer&language=pt&apiKey={API_NEWS}"
+            API_NEWS = "47f7a2378b0a4a6c9096689cf1956945"
+            url = f"https://newsapi.org/v2/everything?q={nome}&language=pt&apiKey={API_NEWS}"
 
-        response = requests.get(url)
-        data = response.json()
+            response = requests.get(url)
+            data = response.json()
 
-        for artigo in data.get("articles", [])[:10]:
-            titulo = artigo["title"]
-            url = artigo["url"]
-            conteudo = artigo["content"]
-            data_pub = artigo["publishedAt"]
-            data_pub = datetime.strptime(data_pub, '%Y-%m-%dT%H:%M:%SZ').date()
+            for artigo in data.get("articles", [])[:10]:
+                titulo = artigo["title"]
+                url = artigo["url"]
+                conteudo = artigo["content"]
+                data_pub = artigo["publishedAt"]
+                data_pub = datetime.strptime(
+                    data_pub, '%Y-%m-%dT%H:%M:%SZ').date()
 
-            # Verificar se a notícia já está no banco
-            query = "SELECT COUNT(*) FROM noticias WHERE titulo = %s"
-            valores = (titulo,)
-            news = self.db.fetch_data(query, valores, tipo_fetch="one")
+                # Verificar se a notícia já está no banco
+                query = "SELECT COUNT(*) FROM noticias WHERE titulo = %s AND cod_bolsa = %s"
+                valores = (titulo, sigla)
+                news = self.db.fetch_data(query, valores, tipo_fetch="one")
 
-            if news and news[0] == 0:
+                if news and news[0] == 0:
 
-                # se não está no banco ainda, verificamos se não é repetida dentro do lote
-                noticias_salvas = []
-                # verifica se a notícia não é reperida dentro desse lote recebido.
-                if self.verificar_noticia(titulo, conteudo, noticias_salvas):
-                    self.logger.info(
-                        f"Título: {artigo.title}")
-                    noticia = {
-                        "titulo": artigo.title,
-                        "texto": conteudo
-                    }
+                    # se não está no banco ainda, verificamos se não é repetida dentro do lote
+                    noticias_salvas = []
+                    # verifica se a notícia não é reperida dentro desse lote recebido.
+                    if self._verificar_noticia(titulo, conteudo, noticias_salvas, nome):
+                        self.logger.info(
+                            f"Título: {artigo.title}")
+                        noticia = {
+                            "titulo": artigo.title,
+                            "texto": conteudo
+                        }
 
-                    query = "INSERT INTO noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
-                    valores = ('EMBR3.SA', titulo, conteudo, data_pub, url)
+                        query = "INSERT INTO noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                        valores = (sigla, titulo, conteudo, data_pub, url)
 
-                    try:
-                        self.db.executa_query(
-                            query, valores, commit=True)
-                        print(f"Nova notícia adicionada: {titulo}")
-                    except Exception as e:
-                        self.logger.error(
-                            f"Erro ao inserir notícia: {artigo.title}. Detalhes: {e}")
-                    finally:
-                        noticias_salvas.append(noticia)
+                        try:
+                            self.db.executa_query(
+                                query, valores, commit=True)
+                            print(f"Nova notícia adicionada: {titulo}")
+                        except Exception as e:
+                            self.logger.error(
+                                f"Erro ao inserir notícia: {artigo.title}. Detalhes: {e}")
+                        finally:
+                            noticias_salvas.append(noticia)
 
-        self.logger.info(f"Novas notícias verificas com sucesso.")
+            self.logger.info(
+                f"Novas notícias verificas com sucesso para '{nome}:{sigla}'.")

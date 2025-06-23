@@ -21,6 +21,11 @@ def run_processes():
     hora_inicio = datetime.now(tz=tz_brasil)
     hora_inicio_geral = datetime.now(tz=tz_brasil)
 
+    ls_empresas = {"EMBR3.SA": "Embraer",
+                   "WEG3.SA": "WEG",
+                   "KLBN4.SA": "Klabin",
+                   "PETR4.SA": "Petrobras"}
+
     log.info(f"Iniciando os processos: '{hora_inicio_geral}'")
     log.info("Etapa 1: Scrapping de informações...")
 
@@ -28,7 +33,8 @@ def run_processes():
                          db,
                          conn,
                          cursor,
-                         table_checker)
+                         table_checker,
+                         ls_empresas)
 
     go_scrapp.executa_scrapping()
 

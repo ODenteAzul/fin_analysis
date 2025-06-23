@@ -110,11 +110,26 @@ class TableChecker():
             CREATE TABLE IF NOT EXISTS meta.controle_populacao (
                 schema_nome     TEXT NOT NULL,
                 tabela_nome     TEXT NOT NULL,
+                empresa         TEXT NOT NULL,
                 populado        BOOLEAN DEFAULT FALSE,
                 data_populacao  DATE,
                 observacao      TEXT,
                 PRIMARY KEY (schema_nome, tabela_nome)
             );"""
+
+            self.db.executa_query(query, commit=True)
+
+            query = """
+            CREATE TABLE IF NOT EXISTS noticias (
+                id SERIAL PRIMARY KEY,
+                cod_bolsa TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                titulo TEXT,
+                descricao TEXT,
+                data_historico DATE NOT NULL,
+                url TEXT,
+                sentimento TEXT);
+            """
 
             self.db.executa_query(query, commit=True)
 
@@ -126,13 +141,17 @@ class TableChecker():
                 f"Não foi possível verificar as tabelas: {e}")
             raise
 
-    def last_date(self, camada, tabela, campo_data):
+    def last_date(self, camada, tabela, empresa, campo_data):
 
         # verifica a data da última informação inserida em determinada tabela.
         try:
+            query = """
+                SELECT MAX(%s) FROM %s.%s WHERE empresa = %s;
+            """
+            valores = (campo_data, camada, tabela, empresa)
 
-            query = (f"SELECT MAX({campo_data}) FROM {camada}.{tabela};")
-            last_date = self.db.fetch_data(query, tipo_fetch="one")
+            last_date = self.db.fetch_data(
+                query=query, valores=valores, tipo_fetch="one")
 
             return last_date[0] if last_date and last_date[0] is not None else None
 
@@ -140,7 +159,7 @@ class TableChecker():
             self.logger.error(
                 f"Não foi possível verificar as tabelas: {e}")
 
-    def register_populated(self, camada, tabela, status, data_populated, observation):
+    def register_populated(self, camada, tabela, empresa, status, data_populated, observation):
         """
         Registra ou atualiza o status de população de uma tabela no schema 'meta'.
 
@@ -159,11 +178,11 @@ class TableChecker():
         """
 
         self.logger.info(
-            f"Atualizando informação sobre carga da tabela: {camada}.{tabela}")
+            f"Atualizando informação sobre carga da tabela: {camada}.{tabela} para empresa {empresa}")
 
         query = """
-                INSERT INTO meta.controle_populacao (schema_nome, tabela_nome, populado, data_populacao, observacao) 
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO meta.controle_populacao (schema_nome, tabela_nome, empresa, populado, data_populacao, observacao) 
+                VALUES (%s, %s, %s, %s, %s, %s)
                 ON CONFLICT (schema_nome, tabela_nome)
                 DO UPDATE SET
                     populado = EXCLUDED.populado,
@@ -171,7 +190,8 @@ class TableChecker():
                     observacao = EXCLUDED.observacao;
             """
 
-        valores = (camada, tabela, status, data_populated, observation)
+        valores = (camada, tabela, empresa, status,
+                   data_populated, observation)
 
         try:
             self.db.executa_query(query, valores=valores, commit=True)
@@ -183,7 +203,7 @@ class TableChecker():
                 f"Erro ao atualizar/inserir dados sobre tabelas populadas em: {camada}.{tabela}. Detalhes: {e}")
         return False
 
-    def check_populated(self, camada, tabela, resposta: str = 'bool') -> Union[bool, Optional[Tuple]]:
+    def check_populated(self, camada, tabela, empresa, resposta: str = 'bool') -> Union[bool, Optional[Tuple]]:
         """
         Verifica se a tabela já foi populada com base no controle em meta.controle_populacao.
 
@@ -206,12 +226,12 @@ class TableChecker():
         if resposta == 'bool':
             query = """
                 SELECT populado FROM meta.controle_populacao
-                WHERE schema_nome = %s AND tabela_nome = %s;
+                WHERE schema_nome = %s AND tabela_nome = %s AND empresa = %s;
             """
 
             try:
                 dados = self.db.fetch_data(query=query, valores=(
-                    camada, tabela), tipo_fetch="one")
+                    camada, tabela, empresa), tipo_fetch="one")
                 if dados and len(dados) > 0:
                     return dados[0]
                 else:
@@ -225,12 +245,12 @@ class TableChecker():
         else:
             query = """
                 SELECT * FROM meta.controle_populacao
-                WHERE schema_nome = %s AND tabela_nome = %s;
+                WHERE schema_nome = %s AND tabela_nome = %s AND empresa = %s;
             """
 
             try:
                 dados = self.db.fetch_data(query=query, valores=(
-                    camada, tabela), tipo_fetch="one")
+                    camada, tabela, empresa), tipo_fetch="one")
                 return dados
 
             except Exception as e:

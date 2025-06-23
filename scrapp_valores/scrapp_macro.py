@@ -18,32 +18,6 @@ class ScrappMacro():
         self.conn = conn
         self.cursor = cursor
 
-    def _dentro_do_horario(self, tarefa):
-
-        try:
-            # horários de controle para ações
-            tarefas_dict = {
-                "hora_abertura_bolsa": (time(10, 0, 0)),
-                "hora_fechamento_bolsa": (time(17, 57, 0)),
-                "dolar_inicio": (time(0, 0, 0)),
-                "dolar_fim": (time(17, 55, 0)),
-                "fechamento_inicio": (time(23, 0, 0)),
-                "fechamento_fim": (time(23, 59, 59)),
-            }
-
-            tz_brasil = ZoneInfo("America/Sao_Paulo")
-            agora = datetime.now(tz=tz_brasil).time()
-
-            if tarefa not in tarefas_dict:
-                self.logger.error(f"Tarefa desconhecida: {tarefa}")
-
-            hora_inicio, hora_fim = tarefas_dict[tarefa]
-            return hora_inicio <= agora <= hora_fim
-
-        except Exception as e:
-            self.logger.error(
-                f"Não foi possível validar o horário de execução da tarefa: {tarefa}, erro: {e}")
-
     def busca_histórico_macroeconomia(self):
 
         self.logger.info(

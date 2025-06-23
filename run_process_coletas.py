@@ -14,19 +14,21 @@ def run_processes():
     db = PostGreSQL(logger=log)
     conn, cursor = db.conectar()
 
+    # verificação de tabelas e meta dados
     table_checker = TableChecker()
 
-    # Estabelecendo horário padrão e de controle
+    # Estabelecendo horário padrão para controle
     tz_brasil = ZoneInfo("America/Sao_Paulo")
     hora_inicio = datetime.now(tz=tz_brasil)
     hora_inicio_geral = datetime.now(tz=tz_brasil)
 
+    # empresas que serão analisadas
     ls_empresas = {"EMBR3.SA": "Embraer",
                    "WEG3.SA": "WEG",
                    "KLBN4.SA": "Klabin",
                    "PETR4.SA": "Petrobras"}
 
-    log.info(f"Iniciando os processos: '{hora_inicio_geral}'")
+    log.info(f"Iniciando o processamento: '{hora_inicio_geral}'")
     log.info("Etapa 1: Scrapping de informações...")
 
     go_scrapp = Scrapper(log,
@@ -58,7 +60,7 @@ def run_processes():
     db.fechar_conexao()
 
     end_time = datetime.now()
-    log.info(f"Processo finalizado em: {end_time - hora_inicio}")
+    log.info(f"Processamento finalizado em: {end_time - hora_inicio}")
 
 
 if __name__ == "__main__":

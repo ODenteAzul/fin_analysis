@@ -290,3 +290,187 @@ class ScrappMacro():
             self.logger.error(
                 f"Erro ao obter o Sentimento Financeiro para{ticker}: {e}")
             return None
+
+    def busca_valores_fechamento(self, days=1):
+
+        # Coletar preços históricos (somente na primeira execução)
+        self.logger.info("Vericando presença de preços históricos... ")
+
+        try:
+            for sigla, empresa in self.ls_empresas:
+
+                # primeiro o dólar diário
+                if not self.table_checker.check_populated(camada='silver', tabela='dolar_diario', empresa=sigla, resposta='bool'):
+                    query = "SELECT COUNT(*) FROM preco_acoes_diario;"
+                    dados_dolar = self.db.fetch_data(query, tipo_fetch="one")
+
+                    if dados_dolar and dados_dolar[0] == 0:
+                        pass  # criando...
+
+                # fechamento bolsa
+                if not self.table_checker.check_populated(camada='silver', tabela='ibovespa_diario', empresa=sigla, resposta='bool'):
+                    query = "SELECT COUNT(*) FROM preco_acoes_diario;"
+                    dados_bolsa = self.db.fetch_data(query, tipo_fetch="one")
+
+                    # Se o banco estiver vazio
+                    if dados_bolsa and dados_bolsa[0] == 0:
+
+                        self.logger.info(
+                            f"Não encontrados para a sigla: {sigla}")
+
+                        acao = yf.Ticker(sigla)
+
+                        historico = acao.history(period="10y")
+                        historico.index = pd.to_datetime(historico.index)
+                        historico.reset_index(inplace=True)
+                        print(historico.head())
+                        # print(historico.info())
+
+                        for date, row in historico.iterrows():
+                            query = """INSERT INTO ibovespa_diario (
+                                                cod_bolsa,
+                                                data_historico,
+                                                preco_abertura,
+                                                preco_minimo,
+                                                preco_maximo,
+                                                preco_fechamento,
+                                                volume_negociado,
+                                                media_movel_50,
+                                                media_movel_200)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                            valores = ("EMBR3.SA",
+                                       row["Date"].date(),
+                                       float(row["Open"]),
+                                       float(row["Low"]),
+                                       float(row["High"]),
+                                       float(row["Close"]),
+                                       int(row["Volume"]) if not pd.isna(
+                                           row["Volume"]) else 0,
+                                       None,
+                                       None)
+
+                            self.db.executa_query(query, valores, commit=True)
+
+                        self.logger.info(
+                            f"Dados encontrados e inseridos para: 'EMBR3.SA'")
+
+                        self.logger.info(f"Calculando médias móveis...")
+
+                        query = """UPDATE preco_acoes_diario AS p
+                                            SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
+                                                media_movel_200 = COALESCE(
+                                                    subquery.media_200, p.media_movel_200)
+                                            FROM (
+                                                SELECT data_historico,
+                                                    AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
+                                                    AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
+                                                FROM preco_acoes_diario
+                                            ) AS subquery
+                                            WHERE p.data_historico = subquery.data_historico;"""
+
+                        self.db.executa_query(query, commit=True)
+
+                        self.logger.info(
+                            f"Médias móveis calculadas com sucesso.")
+                    else:
+                        self.logger.info(f"Preços históricos já presentes.")
+
+        except Exception as e:
+            self.logger.error(
+                f"Houve um problema ao adquirir os dados históricos: {e}")
+            raise
+
+        self.logger.info(
+            f"Consulta de histórico de valores finalizada com sucesso.")
+
+    def busca_cotacao_atual(self, hora_abertura_bolsa,
+                            hora_fechamento_bolsa,
+                            dolar_inicio,
+                            dolar_fim):
+
+        self.logger.info(
+            "Verificando o horários para cotação atual...")
+
+        hora_atual = datetime.now().time()
+
+        if hora_abertura_bolsa <= hora_atual <= hora_fechamento_bolsa:
+            self.logger.info(
+                "Dentro do horário da BOVESPA: Iniciando a coleta de informações...")
+
+            # **Obter cotações atual**
+            self.logger.info(f"Obtendo a cotaçao na bolsa...")
+
+            acao = yf.Ticker("EMBR3.SA")
+            preco = float(acao.history(period="1d")["Close"].iloc[-1])
+
+            scraper = ScrappMacro(
+                logger=self.logger,
+                db=self.db,
+                conn=self.conn,
+                cursor=self.cursor)
+            ibovespa = scraper.busca_ibovespa()
+
+            query = "INSERT INTO precos_embraer_pregao (data_historico, cod_bolsa, preco_acao, ibovespa) VALUES (%s,%s,%s,%s)"
+            valores = (datetime.now(), 'EMBR3.SA', preco, ibovespa)
+
+            try:
+                self.db.executa_query(query, valores, commit=True)
+
+                self.logger.info(f"Dados da BOVESPA gravados para: 'EMBR3.SA'")
+
+            except Exception as e:
+                self.logger.error(
+                    f"Houve um problema ao obter os valores na bolsa: {e}")
+                raise
+
+        else:
+            self.logger.info(
+                "Fora do horário de funcionamento da Bolsa de Valores.")
+
+        if dolar_inicio <= hora_atual <= dolar_fim:
+
+            self.logger.info(
+                "Dentro do horário: Iniciando a coleta da cotação do Dólar...")
+
+            # **Obter cotações atual**
+            self.logger.info(f"Obtendo a cotaçao do Dólar...")
+
+            scraper = ScrappMacro(
+                logger=self.logger,
+                db=self.db,
+                conn=self.conn,
+                cursor=self.cursor)
+
+            df_dolar = scraper.buscar_dolar(atual=True)
+
+            self.logger.info(f"Salvando a cotaçao do Dólar...")
+
+            try:
+                # Garante que as colunas estão na ordem correta
+                colunas = ['data', 'bid', 'ask', 'high',
+                           'low', 'varBid', 'pctChange']
+                df_insert = df_dolar[colunas].copy()
+
+                df_insert['data'] = pd.to_datetime(df_insert['data'])
+
+                valores = tuple(df_dolar.iloc[0][[
+                                'data', 'bid', 'ask', 'high', 'low', 'varBid', 'pctChange']])
+
+                query = """
+                INSERT INTO dolar_diario (
+                    data_historico, bid, ask, high, low, varBid, pctChange
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """
+
+                self.db.executa_query(query, valores, commit=True)
+
+                self.logger.info(f"Dados do Dolar gravados com sucesso.")
+
+            except Exception as e:
+                self.logger.error(
+                    f"Houve um problema ao salvar os valores do Dólar: {e}")
+                raise
+
+        else:
+            self.logger.info(
+                "Fora do horário de coleta do Dólar.")

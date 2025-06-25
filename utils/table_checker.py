@@ -17,7 +17,7 @@ class TableChecker():
         try:
 
             self.logger.info(
-                f"Iniciando verificação das tabelas...")
+                f"Iniciando verificação das tabelas e SCHEMAS...")
 
             # -- Criação dos Schemas
             query = "CREATE SCHEMA IF NOT EXISTS silver;"
@@ -120,7 +120,7 @@ class TableChecker():
             self.db.executa_query(query, commit=True)
 
             query = """
-            CREATE TABLE IF NOT EXISTS noticias (
+            CREATE TABLE IF NOT EXISTS silver.noticias (
                 id SERIAL PRIMARY KEY,
                 cod_bolsa TEXT,
                 timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -134,7 +134,7 @@ class TableChecker():
             self.db.executa_query(query, commit=True)
 
             self.logger.info(
-                f"Tabelas verificadas com sucesso!")
+                f"Tabelas e SCHEMAS verificadas com sucesso!")
 
         except Exception as e:
             self.logger.error(
@@ -195,7 +195,7 @@ class TableChecker():
 
         try:
             self.db.executa_query(query, valores=valores, commit=True)
-            self.logger.info("Dados atualizados com sucesso.")
+            self.logger.info(f"Dados atualizados com sucesso para: {empresa}")
             return True
 
         except Exception as e:

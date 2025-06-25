@@ -75,10 +75,35 @@ class PostGreSQL():
             return False
 
     def fetch_data(self, query, valores=None, tipo_fetch=None, n_linhas=0):
+        """
+        Executes a SELECT query using the current cursor and fetches the result.
 
+        Parameters
+        ----------
+        query : str
+            SQL query to be executed.
+        valores : tuple or list, optional
+            Parameters to be passed along with the query.
+        tipo_fetch : str, optional
+            Specifies how to fetch the result: "one", "many", or "all".
+        n_linhas : int, default=0
+            Number of rows to fetch if tipo_fetch is "many".
+
+        Returns
+        -------
+        list, tuple or None
+            The fetched data, or None/list if nothing is returned.
+        """
         dados = None
 
         try:
+            if tipo_fetch not in ("one", "many", "all"):
+                raise ValueError("tipo_fetch deve ser 'one', 'many' ou 'all'.")
+
+            if tipo_fetch == 'many' and n_linhas == 0:
+                raise ValueError(
+                    "Se tipo_fetch == 'many', n_linhas deve ser > que 0")
+
             if valores:
                 self.cursor.execute(query, valores)
             else:
@@ -96,6 +121,10 @@ class PostGreSQL():
                 dados = self.cursor.fetchall()
                 if not dados:
                     return []
+
+            if not dados:
+                self.logger.info(
+                    "Consulta executada com sucesso, mas nenhum dado foi retornado.")
 
             return dados
 

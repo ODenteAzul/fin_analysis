@@ -2,7 +2,7 @@ from utils.utils import LoggerCustomizado
 from conn_pg import PostGreSQL
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from scrapp_noticias.run_scrapping import Scrapper
+from scrapp.run_scrapping import ScrapperRun
 from scrapp_valores.run_macroeco import MacroEconomics
 from utils.table_checker import TableChecker
 
@@ -15,7 +15,10 @@ def run_processes():
     conn, cursor = db.conectar()
 
     # verificação de tabelas e meta dados
-    table_checker = TableChecker()
+    table_checker = TableChecker(log,
+                                 db,
+                                 conn,
+                                 cursor)
 
     # Estabelecendo horário padrão para controle
     tz_brasil = ZoneInfo("America/Sao_Paulo")
@@ -28,15 +31,33 @@ def run_processes():
                    "KLBN4.SA": "Klabin",
                    "PETR4.SA": "Petrobras"}
 
+    title = r"""
+    #######################################################################################
+    #     ______                                                                          #
+    #    /      \                                                                         # 
+    #    /$$$$$$  |  _______   ______   ______    ______    ______    ______    ______    # 
+    #    $$ \__$$/  /       | /      \ /      \  /      \  /      \  /      \  /      \   # 
+    #    $$      \ /$$$$$$$/ /$$$$$$  |$$$$$$  |/$$$$$$  |/$$$$$$  |/$$$$$$  |/$$$$$$  |  #
+    #    $$$$$$  |$$ |      $$ |  $$/ /    $$ |$$ |  $$ |$$ |  $$ |$$    $$ |$$ |  $$/    #
+    #    /  \__$$ |$$ \_____ $$ |     /$$$$$$$ |$$ |__$$ |$$ |__$$ |$$$$$$$$/ $$ |        #
+    #    $$    $$/ $$       |$$ |     $$    $$ |$$    $$/ $$    $$/ $$       |$$ |        #
+    #    $$$$$$/   $$$$$$$/ $$/       $$$$$$$/ $$$$$$$/  $$$$$$$/   $$$$$$$/ $$/          #
+    #                                        $$ |      $$ |                               #
+    #                                        $$ |      $$ |                               #
+    #                                        $$/       $$/                                #
+    #######################################################################################
+    """
+    log.info(title)
+
     log.info(f"Iniciando o processamento: '{hora_inicio_geral}'")
     log.info("Etapa 1: Scrapping de informações...")
 
-    go_scrapp = Scrapper(log,
-                         db,
-                         conn,
-                         cursor,
-                         table_checker,
-                         ls_empresas)
+    go_scrapp = ScrapperRun(log,
+                            db,
+                            conn,
+                            cursor,
+                            table_checker,
+                            ls_empresas)
 
     go_scrapp.executa_scrapping()
 

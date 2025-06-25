@@ -7,7 +7,7 @@ import pandas as pd
 class APIDataParser():
     def __init__(self, logger=None):
         """
-        Initializes the APIData client with optional custom logger.
+        Initializes the APIDataParser client with optional custom logger.
 
         Parameters
         ----------

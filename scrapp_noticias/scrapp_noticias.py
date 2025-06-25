@@ -2,6 +2,7 @@ import requests
 import yfinance as yf
 import pandas as pd
 import numpy as np
+from datetime import date
 from gdeltdoc import GdeltDoc, Filters
 import re
 from fuzzywuzzy import fuzz
@@ -9,21 +10,23 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
 from bs4 import BeautifulSoup
-from scrapp_valores.scrapp_macro import ScrappMacro
+from scrapp.scrapp_macro import ScrappMacro
 
 
-class Scrapping():
+class ScrappingNoticias():
     def __init__(self,
                  logger,
                  db,
                  conn,
                  cursor,
-                 table_checker):
+                 table_checker,
+                 ls_empresas):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
         self.table_checker = table_checker
+        self.ls_empresas = ls_empresas
 
     def verifica_tabelas(self):
 
@@ -148,72 +151,87 @@ class Scrapping():
 
     def busca_valores_fechamento(self, days=1):
 
-        # **Coletar preços históricos (somente na primeira execução)**
+        # Coletar preços históricos (somente na primeira execução)
         self.logger.info("Vericando presença de preços históricos... ")
 
         try:
-            query = "SELECT COUNT(*) FROM preco_acoes_diario;"
-            dados = self.db.fetch_data(query, tipo_fetch="one")
+            for sigla, empresa in self.ls_empresas:
 
-            if dados and dados[0] == 0:  # Se o banco estiver vazio
+                # primeiro o dólar diário
+                if not self.table_checker.check_populated(camada='silver', tabela='dolar_diario', empresa=sigla, resposta='bool'):
+                    query = "SELECT COUNT(*) FROM preco_acoes_diario;"
+                    dados_dolar = self.db.fetch_data(query, tipo_fetch="one")
 
-                self.logger.info(f"Não encontrados para a empresa 'EMBR3.SA'")
+                    if dados_dolar and dados_dolar[0] == 0:
+                        pass  # criando...
 
-                acao = yf.Ticker("EMBR3.SA")
+                # fechamento bolsa
+                if not self.table_checker.check_populated(camada='silver', tabela='ibovespa_diario', empresa=sigla, resposta='bool'):
+                    query = "SELECT COUNT(*) FROM preco_acoes_diario;"
+                    dados_bolsa = self.db.fetch_data(query, tipo_fetch="one")
 
-                historico = acao.history(period="10y")
-                historico.index = pd.to_datetime(historico.index)
-                historico.reset_index(inplace=True)
-                print(historico.head())
-                # print(historico.info())
+                    # Se o banco estiver vazio
+                    if dados_bolsa and dados_bolsa[0] == 0:
 
-                for date, row in historico.iterrows():
-                    query = """INSERT INTO preco_acoes_diario (
-                                        cod_bolsa,
-                                        data_historico,
-                                        preco_abertura,
-                                        preco_minimo,
-                                        preco_maximo,
-                                        preco_fechamento,
-                                        volume_negociado,
-                                        media_movel_50,
-                                        media_movel_200)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-                    valores = ("EMBR3.SA",
-                               row["Date"].date(),
-                               float(row["Open"]),
-                               float(row["Low"]),
-                               float(row["High"]),
-                               float(row["Close"]),
-                               int(row["Volume"]) if not pd.isna(
-                                   row["Volume"]) else 0,
-                               None,
-                               None)
+                        self.logger.info(
+                            f"Não encontrados para a sigla: {sigla}")
 
-                    self.db.executa_query(query, valores, commit=True)
+                        acao = yf.Ticker(sigla)
 
-                self.logger.info(
-                    f"Dados encontrados e inseridos para: 'EMBR3.SA'")
+                        historico = acao.history(period="10y")
+                        historico.index = pd.to_datetime(historico.index)
+                        historico.reset_index(inplace=True)
+                        print(historico.head())
+                        # print(historico.info())
 
-                self.logger.info(f"Calculando médias móveis...")
+                        for date, row in historico.iterrows():
+                            query = """INSERT INTO ibovespa_diario (
+                                                cod_bolsa,
+                                                data_historico,
+                                                preco_abertura,
+                                                preco_minimo,
+                                                preco_maximo,
+                                                preco_fechamento,
+                                                volume_negociado,
+                                                media_movel_50,
+                                                media_movel_200)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+                            valores = ("EMBR3.SA",
+                                       row["Date"].date(),
+                                       float(row["Open"]),
+                                       float(row["Low"]),
+                                       float(row["High"]),
+                                       float(row["Close"]),
+                                       int(row["Volume"]) if not pd.isna(
+                                           row["Volume"]) else 0,
+                                       None,
+                                       None)
 
-                query = """UPDATE preco_acoes_diario AS p
-                                    SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
-                                        media_movel_200 = COALESCE(
-                                            subquery.media_200, p.media_movel_200)
-                                    FROM (
-                                        SELECT data_historico,
-                                            AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
-                                            AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
-                                        FROM preco_acoes_diario
-                                    ) AS subquery
-                                    WHERE p.data_historico = subquery.data_historico;"""
+                            self.db.executa_query(query, valores, commit=True)
 
-                self.db.executa_query(query, commit=True)
+                        self.logger.info(
+                            f"Dados encontrados e inseridos para: 'EMBR3.SA'")
 
-                self.logger.info(f"Médias móveis calculadas com sucesso.")
-            else:
-                self.logger.info(f"Preços históricos já presentes.")
+                        self.logger.info(f"Calculando médias móveis...")
+
+                        query = """UPDATE preco_acoes_diario AS p
+                                            SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
+                                                media_movel_200 = COALESCE(
+                                                    subquery.media_200, p.media_movel_200)
+                                            FROM (
+                                                SELECT data_historico,
+                                                    AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
+                                                    AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
+                                                FROM preco_acoes_diario
+                                            ) AS subquery
+                                            WHERE p.data_historico = subquery.data_historico;"""
+
+                        self.db.executa_query(query, commit=True)
+
+                        self.logger.info(
+                            f"Médias móveis calculadas com sucesso.")
+                    else:
+                        self.logger.info(f"Preços históricos já presentes.")
 
         except Exception as e:
             self.logger.error(
@@ -344,7 +362,7 @@ class Scrapping():
                 return "texto_indisponivel"
 
         except Exception as e:
-            print(f"Erro: {e}")
+            print(f"Erro ao obter o texto da notícia: {e}")
 
         #    options = webdriver.ChromeOptions()
         #    options.add_argument("--headless")  # Executa sem interface gráfica
@@ -414,15 +432,15 @@ class Scrapping():
 
         return texto_noticia
 
-    def busca_noticias_historicas(self, ls_empresas):
+    def busca_noticias_historicas(self):
 
-        # **Coletar notícias históricas (somente se tabela não estiver populada)**
+        # Coletar notícias históricas (somente se tabela não estiver populada)
         self.logger.info("Vericando presença de notícias históricas... ")
 
         try:
 
-            for sigla, nome in ls_empresas:
-                if not self.table_checker.check_populated(camada='silver', tabela='silver', empresa=sigla, resposta='bool'):
+            for sigla, nome in self.ls_empresas:
+                if not self.table_checker.check_populated(camada='silver', tabela='noticias', empresa=sigla, resposta='bool'):
 
                     self.logger.info(
                         f"Buscando notícias inicias para: '{nome}:{sigla}'")
@@ -471,7 +489,7 @@ class Scrapping():
                                                 "texto": texto_noticia
                                             }
 
-                                            query = "INSERT INTO noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                                            query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
                                             valores = (sigla, artigo.title, texto_noticia, datetime.strptime(
                                                 artigo.seendate, '%Y%m%dT%H%M%SZ').date(), artigo.url)
 
@@ -493,7 +511,7 @@ class Scrapping():
                                                 "texto": texto_noticia
                                             }
 
-                                            query = "INSERT INTO noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                                            query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
                                             valores = (sigla, artigo.title, texto_noticia, datetime.strptime(
                                                 artigo.seendate, '%Y%m%dT%H%M%SZ').date(), artigo.url)
 
@@ -511,14 +529,31 @@ class Scrapping():
                         data_inicial = data_inicial.replace(
                             year=ano_atualizado, month=mes_anterior)
 
-                        self.logger.info(
-                            f"Notícias históricas cadastradas para '{nome}:{sigla}'...")
+                    query = "Select cod_bolsa FROM silver.noticias WHERE cod_bolsa = %s"
+                    valores = sigla
+
+                    resultado = self.db.fetch_data(
+                        self, query, valores=valores, tipo_fetch='one')
+
+                    if resultado is not None:
+
+                        hoje = date.today()
+                        self.table_checker.register_populated(self,
+                                                              camada='meta',
+                                                              tabela='controle_populacao',
+                                                              empresa=sigla,
+                                                              status=True,
+                                                              data_populated=hoje,
+                                                              observation='Carga Inicial')
+
+                    self.logger.info(
+                        f"Notícias históricas cadastradas para '{nome}:{sigla}'...")
                 else:
-                    self.logger.info(f"Notícias históricos já presentes.")
+                    self.logger.info(f"Notícias históricas já presentes.")
 
         except Exception as e:
             self.logger.error(
-                f"Houve um problema ao adquirir os dados históricos: {e}")
+                f"Houve um problema ao adquirir as notícias históricas: {e}")
             raise
 
         self.logger.info(
@@ -526,9 +561,9 @@ class Scrapping():
 
 # **Buscar notícias recentes e verificar duplicatas**
 
-    def buscar_noticias(self, ls_empresas):
+    def buscar_noticias(self):
 
-        for sigla, nome in ls_empresas:
+        for sigla, nome in self.ls_empresas:
             self.logger.info(
                 f"Buscando notícias recentes para a empresa '{nome}:{sigla}'")
 
@@ -547,7 +582,7 @@ class Scrapping():
                     data_pub, '%Y-%m-%dT%H:%M:%SZ').date()
 
                 # Verificar se a notícia já está no banco
-                query = "SELECT COUNT(*) FROM noticias WHERE titulo = %s AND cod_bolsa = %s"
+                query = "SELECT COUNT(*) FROM silver.noticias WHERE titulo = %s AND cod_bolsa = %s"
                 valores = (titulo, sigla)
                 news = self.db.fetch_data(query, valores, tipo_fetch="one")
 
@@ -564,7 +599,7 @@ class Scrapping():
                             "texto": conteudo
                         }
 
-                        query = "INSERT INTO noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                        query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
                         valores = (sigla, titulo, conteudo, data_pub, url)
 
                         try:

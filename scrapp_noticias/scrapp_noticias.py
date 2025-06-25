@@ -10,7 +10,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
 from bs4 import BeautifulSoup
-from scrapp.scrapp_macro import ScrappMacro
+from scrapp.scrapp_indices import ScrappMacro
 
 
 class ScrappingNoticias():

@@ -1,4 +1,4 @@
-from scrapp.scrapp_macro import ScrappMacro
+from scrapp.scrapp_indices import ScrappMacro
 from datetime import datetime
 
 

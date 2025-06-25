@@ -7,16 +7,20 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 
 
-class ScrappMacro():
+class ScrappIndices():
     def __init__(self,
                  logger,
                  db,
                  conn,
-                 cursor):
+                 cursor,
+                 ls_empresas,
+                 table_checker):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
+        self.ls_empresas = ls_empresas
+        self.table_checker = table_checker
 
     def busca_histórico_macroeconomia(self):
 
@@ -24,13 +28,24 @@ class ScrappMacro():
             "Verificando a presença de dados históricos de macro economia...")
 
         try:
-            query = "SELECT COUNT(*) FROM macroeconomia;"
-            dados = self.db.fetch_data(query, tipo_fetch="one")
 
-            if dados and dados[0] == 0:
+            indicadores = [
+                {"codigo": 11, "tabela": "selic"},
+                {"codigo": 433, "tabela": "ipca"},
+                {"codigo": 12, "tabela": "cdi"},
+                {"codigo": 189, "tabela": "igpm"}
+            ]
 
-                self.logger.info(
-                    "Dados ausentes, buscando informações...")
+            for ind in indicadores:
+                if not self.table_checker.check_populated(camada='silver', tabela=ind["tabela"], empresa='macro', resposta='bool'):
+                    self._atualiza_sgs_bacen(
+                        codigo_sgs=ind["codigo"],
+                        hoje=False,
+                        camada='silver',
+                        tabela=ind["tabela"]
+                    )
+                else:
+                    self.logger.info(f"Dados da {ind['tabela'].upper()}: OK.")
 
                 dados_historicos = {
                     "selic": self.buscar_selic(atual=False),
@@ -47,6 +62,105 @@ class ScrappMacro():
         except Exception as e:
             self.logger.error(
                 f"Não foi possível obter o histórico de dados macro econômicos: {e}")
+
+    def _atualiza_serie_ibovespa(self, hoje=True):
+        try:
+            ibov = yf.Ticker("^BVSP")
+
+            if hoje:
+                br_time = datetime.now(ZoneInfo("America/Sao_Paulo"))
+                hoje_data = br_time.date()
+                hoje_str = hoje_data.strftime("%Y-%m-%d")
+
+                df_ibov = ibov.history(
+                    start=hoje_str, end=hoje_str, interval="1d")
+
+                if not df_ibov.empty and df_ibov.index[-1].date() == br_time.date():
+                    linha = df_ibov.iloc[-1]
+                    query = """INSERT INTO silver.ibovespa_diario (
+                                                data,
+                                                preco_abertura,
+                                                preco_minimo,
+                                                preco_maximo,
+                                                preco_fechamento,
+                                                volume_negociado,
+                                                media_movel_50,
+                                                media_movel_200)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
+                    valores = [(
+                        linha.name.date(),
+                        float(linha["Open"]),
+                        float(linha["Low"]),
+                        float(linha["High"]),
+                        float(linha["Close"]),
+                        int(linha["Volume"]) if not pd.isna(
+                            linha["Volume"]) else 0,
+                        None,
+                        None
+                    )]
+
+                    self.db.executa_query(query, valores, commit=True)
+                else:
+                    print("O dado de fechamento de hoje ainda não foi disponibilizado.")
+            else:
+                historico = ibov.history(period="10y")
+                historico.index = pd.to_datetime(historico.index)
+                historico.reset_index(inplace=True)
+
+                query = """INSERT INTO silver.ibovespa_diario (
+                                                data,
+                                                preco_abertura,
+                                                preco_minimo,
+                                                preco_maximo,
+                                                preco_fechamento,
+                                                volume_negociado,
+                                                media_movel_50,
+                                                media_movel_200)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""
+                valores = [
+                    (row["Date"].date(),
+                     float(row["Open"]),
+                     float(row["Low"]),
+                     float(row["High"]),
+                     float(row["Close"]),
+                     int(row["Volume"]) if not pd.isna(
+                        row["Volume"]) else 0,
+                        None,
+                        None)
+                    for _, row in historico.iterrows()]
+
+                self.db.executa_query(query, valores, commit=True, many=True)
+
+                query = """UPDATE silver.ibovespa_diario AS p
+                                            SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
+                                                media_movel_200 = COALESCE(
+                                                    subquery.media_200, p.media_movel_200)
+                                            FROM (
+                                                SELECT data_historico,
+                                                    AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
+                                                    AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
+                                                FROM preco_acoes_diario
+                                            ) AS subquery
+                                            WHERE p.data_historico = subquery.data_historico;"""
+
+                self.db.executa_query(query, commit=True)
+
+                br_time = datetime.now(ZoneInfo("America/Sao_Paulo"))
+                hoje_data = br_time.date()
+                self.table_checker.register_populated(self,
+                                                      camada='silver',
+                                                      tabela='ibovespa_diario',
+                                                      empresa='macro',
+                                                      status=True,
+                                                      data_populated=hoje_data,
+                                                      observation='Carga Inicial 10 anos')
+
+                print(
+                    "Hisatórico dos valores de fechamento do Ibovespa foi criado com sucesso.")
+
+        except Exception as e:
+            self.logger.error(
+                f"Não foi possível obter o fechamento do Ibovespa para {hoje_data}, erro: {e}")
 
     def busca_dados_macro_atuais(self, coleta_diaria):
 
@@ -72,7 +186,7 @@ class ScrappMacro():
         try:
             # alguns dados devem ser coletados apenas ao final do dia: IPCA e SELIC por ex
             dados_atuais = {
-                "selic": self.buscar_selic(atual=True),
+                "selic": self._atualiza_selic(atual=True),
                 "ipca": self.buscar_ipca(atual=True),
                 "dolar": self.buscar_dolar(atual=True),
                 "juros_eua": self.busca_juros_eua(atual=True),
@@ -165,63 +279,99 @@ class ScrappMacro():
                 f"Erro ao obter dados do Dólar: {e}")
             return None
 
-    def buscar_selic(self, atual=True):
+    def _to_float(self, valor):
+        try:
+            return float(str(valor).replace(",", "."))
+        except (ValueError, TypeError):
+            return None
+
+    def _atualiza_sgs_bacen(self, codigo_sgs=None, hoje=True, camada=None, tabela=None):
+
        # URL da API do Banco Central para o SELIC -> sgs code 11
 
+        if codigo_sgs is None:
+            raise TypeError(
+                "O parâmetro 'codigo_sgs' deve ser informado, não deve ser None")
+
+        if camada is None:
+            raise TypeError(
+                "O parâmetro 'camada' deve ser informado, não deve ser None")
+
+        if tabela is None:
+            raise TypeError(
+                "O parâmetro 'tabela' deve ser informado, não deve ser None")
+
+        SERIES = {
+            11: "SELIC Diária",
+            433: "IPCA Mensal",
+            12: "CDI Diária",
+            189: "IGP-M Mensal",
+            10844: "IPCA Serviços",
+            1: "Taxa de Câmbio USD (PTAX)",
+            10880: "Reservas Internacionais"
+        }
+
+        nome_serie = SERIES.get(codigo_sgs, f"SGS {codigo_sgs}")
+
         try:
-            if atual:
+            if hoje:
                 only_date = datetime.today()
                 only_date = only_date.strftime("%d/%m/%Y")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=" + \
-                    only_date+"&dataFinal="+only_date
+                # url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=" + \
+                #    only_date+"&dataFinal="+only_date
+                url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo_sgs}/dados?formato=json&dataInicial={only_date}&dataFinal={only_date}"
                 self.logger.info(
-                    f"Iniciando coleta da SELIC atual")
+                    f"Iniciando coleta da {nome_serie} atual")
             else:
-                hoje = datetime.today()
-                start_date = hoje - relativedelta(years=10)
-                final_date = hoje.strftime("%d/%m/%Y")
+                hoje_data = datetime.today()
+                start_date = hoje_data - relativedelta(years=10)
+                final_date = hoje_data .strftime("%d/%m/%Y")
                 start_date = start_date.strftime("%d/%m/%Y")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=" + \
-                    start_date+"&dataFinal="+final_date
+                # url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=" + \
+                #    start_date+"&dataFinal="+final_date
+                url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo_sgs}/dados?formato=json&dataInicial={start_date}&dataFinal={final_date}"
                 self.logger.info(
-                    f"Iniciando coleta da SELIC dos últimos 10 anos.")
+                    f"Iniciando coleta da {nome_serie} dos últimos 10 anos.")
 
-            self.logger.info(f"URL gerada para SELIC: {url}")
+            self.logger.info(f"URL gerada para {nome_serie}: {url}")
 
             api_client = APIDataParser(self.logger)
 
-            if atual:
+            if hoje:
                 http_get_timeout = 10
             else:
                 http_get_timeout = 150
 
             df_selic = api_client.get_from_api(
-                url, ['data', 'valor'], is_list=True, convert_timestamp=False, sanitize=True, frequency='daily', http_get_timeout=http_get_timeout),
+                url, ['data', 'valor'], is_list=True, convert_timestamp=False, sanitize=True, frequency='daily', http_get_timeout=http_get_timeout)
 
-            self.logger.info(f"SELIC obtido com sucesso.")
+            if df_selic is not None and not df_selic.empty:
+                nome_tabela = f"{camada}.{tabela}"
+                query = f"INSERT INTO {nome_tabela} (data, valor) VALUES (%s, %s);"
+                valores = [
+                    (row["data"].date(), self._to_float(row["valor"]))
+                    for _, row in df_selic.iterrows()
+                    if self._to_float(row["valor"]) is not None
+                ]
 
-            return df_selic
+                self.db.executa_query(query, valores, commit=True, many=True)
+
+                self.logger.info(
+                    f"{nome_serie} histórico obtido e gravado com sucesso.")
+
+                self.table_checker.register_populated(
+                    self,
+                    camada=camada,
+                    tabela=tabela,
+                    empresa='macro',
+                    status=True,
+                    data_populated=datetime.today().date(),
+                    observation=f"Atualização de {nome_serie}"
+                )
 
         except Exception as e:
             self.logger.error(
-                f"Erro ao obter dados do SELIC: {e}")
-            return None
-
-    def busca_ibovespa(self, atual=True):
-        try:
-            ibovespa = yf.Ticker("^BVSP")
-            if atual:
-                valor = ibovespa.history(period="1d")
-                valor = float(ibovespa.history(period="1d")["Close"].iloc[-1])
-            else:
-                valor = ibovespa.history(period="10y")
-
-            self.logger.info(f"BVSP obtido com sucesso.")
-
-            return valor
-        except Exception as e:
-            self.logger.error(
-                f"Erro ao obter a BVSP: {e}")
+                f"Erro ao obter dados do {nome_serie}: {e}")
             return None
 
     def busca_pib(self, atual=True):
@@ -290,6 +440,60 @@ class ScrappMacro():
             self.logger.error(
                 f"Erro ao obter o Sentimento Financeiro para{ticker}: {e}")
             return None
+
+    def busca_valores_intra_diarios(inicio=None, fim=None):
+        """
+        Baixa os dados históricos da ação EMBR3 do site Investing.com.
+
+        Parameters
+        ----------
+        inicio : str
+            Data de início no formato 'dd/mm/yyyy'.
+        fim : str ou None
+            Data final no formato 'dd/mm/yyyy'. Se None, usa a data atual.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame com colunas como Data, Último, Abertura, Máxima, Mínima, Var%
+        """
+        if inicio is None:
+            hoje = datetime.datetime.today()
+            inicio = hoje - relativedelta(years=10)
+            inicio = inicio.strftime("%d/%m/%Y")
+        if fim is None:
+            fim = datetime.datetime.today().strftime("%d/%m/%Y")
+
+        url_calendario = (
+            "https://www.investing.com/instruments/HistoricalDataAjax"
+        )
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "X-Requested-With": "XMLHttpRequest",
+            "Referer": "https://www.investing.com/equities/embraer-on-nm-historical-data",
+        }
+
+        payload = {
+            "curr_id": 10409,
+            "smlID": 205086,
+            "header": "Embraer ON Histórico de Dados",
+            "st_date": inicio,
+            "end_date": fim,
+            "interval_sec": "Daily",
+            "sort_col": "date",
+            "sort_ord": "DESC",
+            "action": "historical_data"
+        }
+
+        response = requests.post(url_calendario, headers=headers, data=payload)
+        df = pd.read_html(response.text, thousands='.', decimal=',')[0]
+
+        # Tratamento e ordenação da tabela
+        df['Data'] = pd.to_datetime(df['Data'], format='%d.%m.%Y')
+        df.sort_values('Data', inplace=True)
+        df.reset_index(drop=True, inplace=True)
+
+        return df
 
     def busca_valores_fechamento(self, days=1):
 

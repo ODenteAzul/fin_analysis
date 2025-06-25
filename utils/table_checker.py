@@ -55,6 +55,24 @@ class TableChecker():
 
             self.db.executa_query(query, commit=True)
 
+            # -- Tabela: cdi (coleta diária ou mensal, dependendo da fonte)
+            query = """
+            CREATE TABLE IF NOT EXISTS silver.cdi (
+                data DATE PRIMARY KEY,
+                valor NUMERIC
+            );"""
+
+            self.db.executa_query(query, commit=True)
+
+            # -- Tabela: igpm (coleta diária ou mensal, dependendo da fonte)
+            query = """
+            CREATE TABLE IF NOT EXISTS silver.igpm (
+                data DATE PRIMARY KEY,
+                valor NUMERIC
+            );"""
+
+            self.db.executa_query(query, commit=True)
+
             # -- Tabela: IPCA (índice de preços ao consumidor - mensal)
             query = """
             CREATE TABLE IF NOT EXISTS silver.ipca_mensal (
@@ -86,7 +104,13 @@ class TableChecker():
             query = """
             CREATE TABLE IF NOT EXISTS silver.ibovespa_diario (
                 data DATE PRIMARY KEY,
-                valor NUMERIC
+                preco_abertura NUMERIC,
+                preco_minimo NUMERIC,
+                preco_maximo NUMERIC,
+                preco_fechamento NUMERIC,
+                volume_negociado NUMERIC,
+                media_movel_50 NUMERIC,
+                media_movel_200 NUMERIC
             );"""
 
             self.db.executa_query(query, commit=True)
@@ -210,7 +234,7 @@ class TableChecker():
         args:
             camada: str = o nome da camada = 'silver' ou 'gold'
             tabela: str = o nome da tabela a ser validada
-            resposta: str = se 'bool': apenas verifica se a tabela consta populata
+            resposta: str = se 'bool': apenas verifica se a tabela consta populada
                             se 'dados': devolve o registro completo sobre a tabela
 
         Returns

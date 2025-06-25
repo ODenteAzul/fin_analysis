@@ -50,7 +50,7 @@ def run_processes():
     log.info(title)
 
     log.info(f"Iniciando o processamento: '{hora_inicio_geral}'")
-    log.info("Etapa 1: Scrapping de informações...")
+    log.info("Scrapping de informações...")
 
     go_scrapp = ScrapperRun(log,
                             db,
@@ -62,7 +62,7 @@ def run_processes():
     go_scrapp.executa_scrapping()
 
     end_time = datetime.now()
-    log.info(f"Etapa 1: Finalizada com sucesso, em: {end_time - hora_inicio}")
+    log.info(f"Scrapping finalizado com sucesso em: {end_time - hora_inicio}")
 
     hora_inicio = datetime.now(tz=tz_brasil)
 

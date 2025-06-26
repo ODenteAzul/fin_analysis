@@ -34,14 +34,22 @@ class TableChecker():
 
             # -- Tabela: Dólar diário (coleta diária)
             query = """
-            CREATE TABLE IF NOT EXISTS silver.dolar_diario (
-                data DATE PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS silver.cambio_diario (
+                data DATE,
+                par_moeda TEXT NOT NULL,
                 bid NUMERIC,
                 ask NUMERIC,
                 high NUMERIC,
                 low NUMERIC,
                 var_bid NUMERIC,
-                pct_change NUMERIC
+                pct_change NUMERIC,
+                preco_medio NUMERIC,
+                spread NUMERIC,
+                amplitude_pct NUMERIC,
+                fechamento_anterior NUMERIC,
+                var_dia_real NUMERIC,
+                var_dia_pct NUMERIC,
+                PRIMARY KEY (data, par_moeda)
             );"""
 
             self.db.executa_query(query, commit=True)
@@ -75,7 +83,7 @@ class TableChecker():
 
             # -- Tabela: IPCA (índice de preços ao consumidor - mensal)
             query = """
-            CREATE TABLE IF NOT EXISTS silver.ipca_mensal (
+            CREATE TABLE IF NOT EXISTS silver.ipca (
                 data DATE PRIMARY KEY,
                 valor NUMERIC
             );"""

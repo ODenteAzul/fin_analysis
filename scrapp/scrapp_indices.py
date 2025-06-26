@@ -36,6 +36,14 @@ class ScrappIndices():
                 {"codigo": 189, "tabela": "igpm"}
             ]
 
+            pares_moeda = {
+                "USD-BRL": "Dólar Americano",
+                "EUR-BRL": "Euro",
+                "GBP-BRL": "Libra Esterlina",
+                "ARS-BRL": "Peso Argentino",
+                "CNY-BRL": "Yuan Chinês"
+            }
+
             for ind in indicadores:
                 if not self.table_checker.check_populated(camada='silver', tabela=ind["tabela"], empresa='macro', resposta='bool'):
                     self._atualiza_sgs_bacen(
@@ -47,14 +55,22 @@ class ScrappIndices():
                 else:
                     self.logger.info(f"Dados da {ind['tabela'].upper()}: OK.")
 
-                dados_historicos = {
-                    "selic": self.buscar_selic(atual=False),
-                    "ipca": self.buscar_ipca(atual=False),
-                    "dolar": self.buscar_dolar(atual=False),
-                    "juros_eua": self.busca_juros_eua(atual=False)
-                }
+            if not self.table_checker.check_populated(camada='silver', tabela='cambio_diario', empresa='macro', resposta='bool'):
+                for par, nome in pares_moeda.items():
+                    self._atualiza_cambio(par_moeda=par, hoje=False)
 
-                print(dados_historicos)
+                self.table_checker.register_populated(
+                    self,
+                    camada='silver',
+                    tabela='cambio_diario',
+                    empresa="macro",
+                    status=True,
+                    data_populated=datetime.today().date(),
+                    observation="Carga cambio_diario histórico"
+                )
+
+            else:
+                self.logger.info(f"Dados de Cambio Diário: OK.")
 
             self.logger.info(
                 "Coleta de dados históricos efetuada com sucesso.")
@@ -202,92 +218,86 @@ class ScrappIndices():
             self.logger.error(
                 f"Não foi possível coletar os dados diários: {e}")
 
-    def buscar_ipca(self, atual=True):
-        # URL da API do Banco Central para o IPCA -> sgs code 433
-
-        try:
-            if atual:
-                only_date = datetime.today()
-                only_date = only_date.strftime("%d/%m/%Y")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados?formato=json&dataInicial=" + \
-                    only_date+"&dataFinal="+only_date
-                self.logger.info(
-                    f"Iniciando coleta do IPCA atual.")
-            else:
-                hoje = datetime.today()
-                start_date = hoje - relativedelta(years=10)
-                final_date = hoje.strftime("%d/%m/%Y")
-                start_date = start_date.strftime("%d/%m/%Y")
-                url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.433/dados/?formato=json&dataInicial=" + \
-                    start_date+"&dataFinal="+final_date
-                self.logger.info(
-                    f"Iniciando coleta do IPCA dos últimos 10 anos.")
-
-            self.logger.info(f"URL gerada para IPCA: {url}")
-
-            if atual:
-                http_get_timeout = 10
-            else:
-                http_get_timeout = 150
-
-            api_client = APIDataParser(self.logger)
-
-            df_ipca = api_client.get_from_api(
-                url, ['data', 'valor'], is_list=True, convert_timestamp=False, sanitize=True, frequency='daily', http_get_timeout=http_get_timeout),
-
-            self.logger.info(f"IPCA obtido com sucesso.")
-
-            return df_ipca
-
-        except Exception as e:
-            self.logger.error(
-                f"Erro ao obter dados do IPCA: {e}")
-            return None
-
-    # URL da API para taxa de câmbio
-    def buscar_dolar(self, atual=True):
-
-        try:
-            if atual:
-                url = "https://economia.awesomeapi.com.br/json/last/USD-BRL"
-                self.logger.info(
-                    f"Iniciando coleta do Dólar atual")
-            else:
-                dias_passados = (
-                    datetime.today() - (datetime.today() - relativedelta(years=10))).days
-                url = f"https://economia.awesomeapi.com.br/json/daily/USD-BRL/{dias_passados}"
-                self.logger.info(
-                    f"Iniciando coleta do Dólar dos últimos 10 anos.")
-
-            self.logger.info(f"URL gerada para o Dólar: {url}")
-
-            api_client = APIDataParser(self.logger)
-            if atual:
-                is_list = False
-            else:
-                is_list = True
-
-            df_dolar = api_client.get_from_api(
-                url, ['high', 'low', 'varBid', 'pctChange', 'bid', 'ask', 'timestamp'], is_list=is_list, convert_timestamp=True, sanitize=True, frequency='daily')
-
-            self.logger.info(f"Cotação do Dólar obtido com sucesso.")
-
-            return df_dolar
-
-        except Exception as e:
-            self.logger.error(
-                f"Erro ao obter dados do Dólar: {e}")
-            return None
-
     def _to_float(self, valor):
         try:
             return float(str(valor).replace(",", "."))
         except (ValueError, TypeError):
             return None
 
-    def _atualiza_sgs_bacen(self, codigo_sgs=None, hoje=True, camada=None, tabela=None):
+    def _atualiza_cambio(self, par_moeda, hoje=True):
 
-       # URL da API do Banco Central para o SELIC -> sgs code 11
+        try:
+            if hoje:
+                is_list = False
+                many = False
+                url = f"https://economia.awesomeapi.com.br/json/last/{par_moeda}"
+                self.logger.info(
+                    f"Iniciando coleta do fechamento do Dólar de hoje...")
+            else:
+                is_list = True
+                many = True
+                dias_passados = (
+                    datetime.today() - (datetime.today() - relativedelta(years=10))).days
+                url = f"https://economia.awesomeapi.com.br/json/daily/{par_moeda}/{dias_passados}"
+                self.logger.info(
+                    f"Iniciando coleta do fechamento do Dólar dos últimos 10 anos...")
+
+            self.logger.info(f"URL gerada para o par {par_moeda}: {url}")
+
+            api_client = APIDataParser(self.logger)
+
+            df_cambio = api_client.get_from_api(
+                url, ['high', 'low', 'varBid', 'pctChange',
+                      'bid', 'ask', 'timestamp'],
+                is_list=is_list,
+                convert_timestamp=True,
+                sanitize=True,
+                frequency='daily')
+
+            df_cambio.sort_values("data", inplace=True)
+            df_cambio["preco_medio"] = (
+                df_cambio["high"] + df_cambio["low"]) / 2
+            df_cambio["spread"] = df_cambio["ask"] - df_cambio["bid"]
+            df_cambio["amplitude_pct"] = (
+                (df_cambio["high"] - df_cambio["low"]) / df_cambio["low"]) * 100
+            df_cambio["fechamento_anterior"] = df_cambio["bid"].shift(1)
+            df_cambio["var_dia_real"] = df_cambio["bid"] - \
+                df_cambio["fechamento_anterior"]
+            df_cambio["var_dia_pct"] = (
+                (df_cambio["bid"] - df_cambio["fechamento_anterior"]) / df_cambio["fechamento_anterior"]) * 100
+
+            query = """INSERT INTO silver.cambio_diario (data, par_moeda, bid, ask,
+                        high, low, var_bid, pct_change, preco_medio, spread, 
+                        amplitude_pct, fechamento_anterior, var_dia_real, var_dia_pct)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
+
+            valores = [
+                (row["data"].date(),
+                 par_moeda,
+                 self._to_float(row["bid"]),
+                 self._to_float(row["ask"]),
+                 self._to_float(row["high"]),
+                 self._to_float(row["low"]),
+                 self._to_float(row.get("var_bid") or row.get("varBid")),
+                 self._to_float(row.get("pct_change") or row.get("pctChange")),
+                 self._to_float(row["preco_medio"]),
+                 self._to_float(row["spread"]),
+                 self._to_float(row["amplitude_pct"]),
+                 self._to_float(row["fechamento_anterior"]),
+                 self._to_float(row["var_dia_real"]),
+                 self._to_float(row["var_dia_pct"]))
+                for _, row in df_cambio.iterrows()]
+
+            self.db.executa_query(query, valores, commit=True, many=many)
+
+            self.logger.info(
+                f"Coleta do par {par_moeda} obtida e gravada com sucesso.")
+
+        except Exception as e:
+            self.logger.error(
+                f"Erro ao obter câmbio {par_moeda}: {e}")
+
+    def _atualiza_sgs_bacen(self, codigo_sgs=None, hoje=True, camada=None, tabela=None):
 
         if codigo_sgs is None:
             raise TypeError(

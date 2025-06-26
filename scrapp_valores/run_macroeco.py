@@ -1,4 +1,4 @@
-from scrapp.scrapp_indices import ScrappMacro
+from scrapp_valores.run_macroeco import MacroEconomics
 from datetime import datetime
 
 

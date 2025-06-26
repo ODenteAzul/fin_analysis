@@ -67,9 +67,9 @@ class ScrapperRun():
                 ls_empresas=self.ls_empresas,
                 table_checker=tables)
 
-            scrap.busca_noticias_historicas()
+            # scrap.busca_noticias_historicas()
 
-            scrap.buscar_noticias()
+            # scrap.buscar_noticias()
 
             hora_fim = datetime.now(tz=tz_brasil)
             self.logger.info(
@@ -98,11 +98,11 @@ class ScrapperRun():
             try:
                 scrap.busca_histórico_macroeconomia()
 
-                scrap.busca_dados_macro_atuais(coleta_diaria)
+                # scrap.busca_dados_macro_atuais(coleta_diaria)
 
-                scrap.busca_valores_fechamento()
+                # scrap.busca_valores_fechamento()
 
-                scrap.busca_cotacao_atual()
+                # scrap.busca_cotacao_atual()
 
             except Exception as e:
                 hora_atual = datetime.now().time()

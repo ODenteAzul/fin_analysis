@@ -3,7 +3,7 @@ from conn_pg import PostGreSQL
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from scrapp.run_scrapping import ScrapperRun
-from scrapp_valores.run_macroeco import MacroEconomics
+# from scrapp_valores.run_macroeco import MacroEconomics
 from utils.table_checker import TableChecker
 
 
@@ -68,12 +68,12 @@ def run_processes():
 
     log.info("Etapa 2: Coletando dados Macro Econômicos...")
 
-    go_me = MacroEconomics(log,
-                           db,
-                           conn,
-                           cursor)
+    # go_me = MacroEconomics(log,
+    #                       db,
+    #                       conn,
+    #                       cursor)
 
-    go_me.executa_macro(coleta_diaria_macro)
+    # go_me.executa_macro(coleta_diaria_macro)
 
     end_time = datetime.now()
     log.info(f"Etapa 2: Finalizada com sucesso, em: {end_time - hora_inicio}")

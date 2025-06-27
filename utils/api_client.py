@@ -49,7 +49,7 @@ class APIDataParser():
                 f"Failed to extract common keys from JSON: {e}")
             return None
 
-    def _validate_json(self, response, is_list, cols=None):
+    def _validate_json(self, response, is_list, cols=None, data_key=None):
         """
         Validates the JSON structure of an HTTP response.
 
@@ -77,6 +77,9 @@ class APIDataParser():
 
         try:
             response_json = response.json()
+
+            if isinstance(response_json, dict) and data_key in response_json:
+                response_json = response_json[data_key]
 
             if is_list:
                 if not isinstance(response_json, list):
@@ -121,7 +124,7 @@ class APIDataParser():
             frequency: str = 'daily',
             col_freq="data",
             date_as_index: bool = False,
-            date_format: str = "%d/%m/%Y") -> pd.DataFrame:
+            date_format: str = None) -> pd.DataFrame:
         """
         Converts a structured JSON in a pd.DataFrame, treating columns, data and Null Values.
 
@@ -204,7 +207,11 @@ class APIDataParser():
                         self.logger.info(
                             f"Date frequency inferred: {frequency}")
 
-                df[col_freq] = pd.to_datetime(df[col_freq], format=date_format)
+                df[col_freq] = pd.to_datetime(df[col_freq])
+
+                if date_format:
+                    df[col_freq] = pd.to_datetime(
+                        df[col_freq], format=date_format, errors="coerce")
 
                 if frequency == "monthly":
                     df[col_freq] = df[col_freq].dt.to_period(
@@ -235,7 +242,8 @@ class APIDataParser():
                      col_freq="data",
                      date_as_index: bool = False,
                      http_get_timeout: int = 10,
-                     date_format: str = "%d/%m/%Y"):
+                     date_format: str = None,
+                     data_key: str = None):
         """
         Sends an HTTP GET request to the specified URL and parses the JSON response into a DataFrame.
 
@@ -277,7 +285,7 @@ class APIDataParser():
                 url, http_get_timeout=http_get_timeout)
 
             json_data = self._validate_json(
-                response, is_list, cols=variable_list)
+                response, is_list, cols=variable_list, data_key=data_key)
 
             df = self._parse_json_to_df(
                 json_data=json_data,

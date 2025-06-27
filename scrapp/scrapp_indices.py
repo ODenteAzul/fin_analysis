@@ -44,7 +44,16 @@ class ScrappIndices():
                 "CNY-BRL": "Yuan Chinês"
             }
 
+            juros_eua = [
+                {"serie": "EFFR", "tabela": "juros_usa_effr"},
+                {"serie": "FEDFUNDS", "tabela": "juros_usa_fedfunds"}
+            ]
+
             for ind in indicadores:
+
+                self.logger.info(
+                    f"Verificando {ind['tabela'].upper()}...")
+
                 if not self.table_checker.check_populated(camada='silver', tabela=ind["tabela"], empresa='macro', resposta='bool'):
                     self._atualiza_sgs_bacen(
                         codigo_sgs=ind["codigo"],
@@ -56,11 +65,15 @@ class ScrappIndices():
                     self.logger.info(f"Dados da {ind['tabela'].upper()}: OK.")
 
             if not self.table_checker.check_populated(camada='silver', tabela='cambio_diario', empresa='macro', resposta='bool'):
+
                 for par, nome in pares_moeda.items():
+
+                    self.logger.info(
+                        f"Verificando histórico de cotação: {par} ...")
+
                     self._atualiza_cambio(par_moeda=par, hoje=False)
 
                 self.table_checker.register_populated(
-                    self,
                     camada='silver',
                     tabela='cambio_diario',
                     empresa="macro",
@@ -71,6 +84,22 @@ class ScrappIndices():
 
             else:
                 self.logger.info(f"Dados de Cambio Diário: OK.")
+
+            for juros in juros_eua:
+
+                self.logger.info(
+                    f"Verificando {juros["serie"]} (juros americano)...")
+
+                if not self.table_checker.check_populated(camada='silver', tabela=juros["tabela"], empresa='macro', resposta='bool'):
+                    self._atualiza_juros_eua(
+                        serie=juros["serie"],
+                        hoje=False,
+                        camada='silver',
+                        tabela=juros["tabela"]
+                    )
+                else:
+                    self.logger.info(
+                        f"Dados da {juros["serie"]} (juros americano): OK.")
 
             self.logger.info(
                 "Coleta de dados históricos efetuada com sucesso.")
@@ -230,15 +259,19 @@ class ScrappIndices():
             if hoje:
                 is_list = False
                 many = False
-                url = f"https://economia.awesomeapi.com.br/json/last/{par_moeda}"
+                url = f"https://economia.awesomeapi.com.br/json/last/{par_moeda}?token=9c91ad4e0c552bcc5498d2ceb84f3ba60c60bdddd56fce886511979fa28b0b12"
                 self.logger.info(
                     f"Iniciando coleta do fechamento do Dólar de hoje...")
             else:
                 is_list = True
                 many = True
+                hoje_data = datetime.today()
                 dias_passados = (
-                    datetime.today() - (datetime.today() - relativedelta(years=10))).days
-                url = f"https://economia.awesomeapi.com.br/json/daily/{par_moeda}/{dias_passados}"
+                    hoje_data - (hoje_data - relativedelta(years=10))).days
+                start_date = hoje_data - relativedelta(years=10)
+                final_date = hoje_data .strftime("%Y%m%d")
+                start_date = start_date.strftime("%Y%m%d")
+                url = f"https://economia.awesomeapi.com.br/json/daily/{par_moeda}/{dias_passados}?token=9c91ad4e0c552bcc5498d2ceb84f3ba60c60bdddd56fce886511979fa28b0b12&start_date={start_date}&end_date={final_date}"
                 self.logger.info(
                     f"Iniciando coleta do fechamento do Dólar dos últimos 10 anos...")
 
@@ -253,6 +286,21 @@ class ScrappIndices():
                 convert_timestamp=True,
                 sanitize=True,
                 frequency='daily')
+
+            df_cambio.sort_values("data", inplace=True)
+
+            df_cambio = df_cambio.drop_duplicates(
+                subset=["data"], keep="last"
+            )
+
+            colunas_numericas = [
+                "high", "low", "bid", "ask", "varBid", "pctChange",
+                "var_bid", "pct_change", "timestamp"
+            ]
+
+            for col in colunas_numericas:
+                if col in df_cambio.columns:
+                    df_cambio[col] = df_cambio[col].apply(self._to_float)
 
             df_cambio.sort_values("data", inplace=True)
             df_cambio["preco_medio"] = (
@@ -326,20 +374,24 @@ class ScrappIndices():
         try:
             if hoje:
                 only_date = datetime.today()
+                http_get_timeout = 10
+                pop_string = f"Atualização de {nome_serie}"
                 only_date = only_date.strftime("%d/%m/%Y")
-                # url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=" + \
-                #    only_date+"&dataFinal="+only_date
+
                 url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo_sgs}/dados?formato=json&dataInicial={only_date}&dataFinal={only_date}"
+
                 self.logger.info(
                     f"Iniciando coleta da {nome_serie} atual")
             else:
                 hoje_data = datetime.today()
+                http_get_timeout = 150
+                pop_string = f"Carga inicial: {nome_serie}"
                 start_date = hoje_data - relativedelta(years=10)
                 final_date = hoje_data .strftime("%d/%m/%Y")
                 start_date = start_date.strftime("%d/%m/%Y")
-                # url = "https://api.bcb.gov.br/dados/serie/bcdata.sgs.11/dados?formato=json&dataInicial=" + \
-                #    start_date+"&dataFinal="+final_date
+
                 url = f"https://api.bcb.gov.br/dados/serie/bcdata.sgs.{codigo_sgs}/dados?formato=json&dataInicial={start_date}&dataFinal={final_date}"
+
                 self.logger.info(
                     f"Iniciando coleta da {nome_serie} dos últimos 10 anos.")
 
@@ -347,20 +399,15 @@ class ScrappIndices():
 
             api_client = APIDataParser(self.logger)
 
-            if hoje:
-                http_get_timeout = 10
-            else:
-                http_get_timeout = 150
-
-            df_selic = api_client.get_from_api(
+            df_indice = api_client.get_from_api(
                 url, ['data', 'valor'], is_list=True, convert_timestamp=False, sanitize=True, frequency='daily', http_get_timeout=http_get_timeout)
 
-            if df_selic is not None and not df_selic.empty:
+            if df_indice is not None and not df_indice.empty:
                 nome_tabela = f"{camada}.{tabela}"
                 query = f"INSERT INTO {nome_tabela} (data, valor) VALUES (%s, %s);"
                 valores = [
                     (row["data"].date(), self._to_float(row["valor"]))
-                    for _, row in df_selic.iterrows()
+                    for _, row in df_indice.iterrows()
                     if self._to_float(row["valor"]) is not None
                 ]
 
@@ -370,13 +417,12 @@ class ScrappIndices():
                     f"{nome_serie} histórico obtido e gravado com sucesso.")
 
                 self.table_checker.register_populated(
-                    self,
                     camada=camada,
                     tabela=tabela,
                     empresa='macro',
                     status=True,
                     data_populated=datetime.today().date(),
-                    observation=f"Atualização de {nome_serie}"
+                    observation=f"Atualização de {pop_string}"
                 )
 
         except Exception as e:
@@ -399,31 +445,73 @@ class ScrappIndices():
                 f"Erro ao obter o PIB: {e}")
             return None
 
-    def busca_juros_eua(self, atual=True):
+    def _atualiza_juros_eua(self, serie=None, hoje=True, camada=None, tabela=None):
         try:
-            if atual:
+            if hoje:
                 start_date = datetime.today()
                 only_date = start_date.strftime("%Y-%m-%d")
-                url = "https://api.stlouisfed.org/fred/series_observations?series_id=FEDFUNDS&api_key=f308c54585d765845e4c89ca7a010c3a&file_type=json&observation_start=" + \
-                    only_date+"&observation_end="+only_date
+                http_get_timeout = 10
+                pop_string = f"atualizacao: {serie}"
+                url = f"https://api.stlouisfed.org/fred/series_observations?series_id={serie}&api_key=f308c54585d765845e4c89ca7a010c3a&file_type=json&observation_start={only_date}&observation_end={only_date}"
             else:
                 hoje = datetime.today()
                 final_date = hoje.strftime("%Y-%m-%d")
-                start_date = hoje - timedelta(years=10)
+                start_date = hoje - relativedelta(years=10)
                 start_date = start_date.strftime("%Y-%m-%d")
-                url = "https://api.stlouisfed.org/fred/series_observations?series_id=FEDFUNDS&api_key=f308c54585d765845e4c89ca7a010c3a&file_type=json&observation_start=" + \
-                    start_date+"&observation_end="+final_date
+                http_get_timeout = 150
+                pop_string = f"Carga inicial: {serie}"
+                url = f"https://api.stlouisfed.org/fred/series_observations?series_id={serie}&api_key=f308c54585d765845e4c89ca7a010c3a&file_type=json&observation_start={start_date}&observation_end={final_date}"
 
-            response = requests.get(url)
-            dados_fed = response.json()
+            self.logger.info(f"URL gerada para Juros EUA ({serie}): {url}")
 
-            self.logger.info(f"Juros EUA obtido com sucesso.")
+            api_client = APIDataParser(self.logger)
 
-            return dados_fed
+            df_juros = api_client.get_from_api(
+                url,
+                ['date', 'value'],
+                is_list=True,
+                convert_timestamp=False,
+                sanitize=True,
+                frequency='monthly',
+                http_get_timeout=http_get_timeout,
+                data_key='observations',
+                col_freq='date',
+                date_format='%d/%m/%Y')
+
+            df_juros.sort_values("date", inplace=True)
+
+            df_juros = df_juros.drop_duplicates(
+                subset=["date"], keep="last"
+            )
+
+            if df_juros is not None and not df_juros.empty:
+                nome_tabela = f"{camada}.{tabela}"
+                query = f"INSERT INTO {nome_tabela} (data, valor) VALUES (%s, %s);"
+                valores = [
+                    (row["date"].date(), self._to_float(row["value"]))
+                    for _, row in df_juros.iterrows()
+                    if self._to_float(row["value"]) is not None
+                ]
+
+                self.db.executa_query(query, valores, commit=True, many=True)
+
+                self.logger.info(
+                    f"{serie} histórico obtido e gravado com sucesso.")
+
+                self.table_checker.register_populated(
+                    camada=camada,
+                    tabela=tabela,
+                    empresa='macro',
+                    status=True,
+                    data_populated=datetime.today().date(),
+                    observation=f"Atualização de {pop_string}"
+                )
+
+            self.logger.info(f"Juros ({serie}) EUA obtido com sucesso.")
 
         except Exception as e:
             self.logger.error(
-                f"Erro ao obter os Juros EUA: {e}")
+                f"Erro ao obter os Juros ({serie}) EUA: {e}")
             return None
 
     def sentimento_financeiro(self, ticker="EMBR3.SA"):

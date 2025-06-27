@@ -98,7 +98,7 @@ class ScrapperRun():
             try:
                 scrap.busca_histórico_macroeconomia()
 
-                # scrap.busca_dados_macro_atuais(coleta_diaria)
+                # scrap.busca_dados_macro_atuais()
 
                 # scrap.busca_valores_fechamento()
 

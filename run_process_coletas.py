@@ -61,10 +61,8 @@ def run_processes():
 
     go_scrapp.executa_scrapping()
 
-    end_time = datetime.now()
+    end_time = datetime.now(tz=tz_brasil)
     log.info(f"Scrapping finalizado com sucesso em: {end_time - hora_inicio}")
-
-    hora_inicio = datetime.now(tz=tz_brasil)
 
     log.info("Etapa 2: Coletando dados Macro Econômicos...")
 
@@ -75,12 +73,12 @@ def run_processes():
 
     # go_me.executa_macro(coleta_diaria_macro)
 
-    end_time = datetime.now()
+    end_time = datetime.now(tz=tz_brasil)
     log.info(f"Etapa 2: Finalizada com sucesso, em: {end_time - hora_inicio}")
 
     db.fechar_conexao()
 
-    end_time = datetime.now()
+    end_time = datetime.now(tz=tz_brasil)
     log.info(f"Processamento finalizado em: {end_time - hora_inicio}")
 
 

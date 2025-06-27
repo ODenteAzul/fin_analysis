@@ -99,9 +99,18 @@ class TableChecker():
 
             self.db.executa_query(query, commit=True)
 
-            # -- Tabela: Juros EUA (Fed Funds Rate - coleta diária ou após FOMC)
+            # -- Tabela: Juros EUA (Fed Funds Rate - coleta mensal)
             query = """
-            CREATE TABLE IF NOT EXISTS silver.juros_usa (
+            CREATE TABLE IF NOT EXISTS silver.juros_usa_fedfunds (
+                data DATE PRIMARY KEY,
+                valor NUMERIC
+            );"""
+
+            self.db.executa_query(query, commit=True)
+
+            # -- Tabela: Juros EUA (Fed Funds Rate - coleta diária)
+            query = """
+            CREATE TABLE IF NOT EXISTS silver.juros_usa_effr (
                 data DATE PRIMARY KEY,
                 valor NUMERIC
             );"""

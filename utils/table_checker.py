@@ -1,4 +1,6 @@
-from typing import Union, Optional, Tuple
+import pandas as pd
+from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 
 
 class TableChecker():
@@ -34,8 +36,8 @@ class TableChecker():
 
             # -- Tabela: Dólar diário (coleta diária)
             query = """
-            CREATE TABLE IF NOT EXISTS silver.cambio_diario (
-                data DATE,
+            CREATE TABLE IF NOT EXISTS silver.cambio_diario_yuan (
+                data DATE PRIMARY KEY,
                 par_moeda TEXT NOT NULL,
                 bid NUMERIC,
                 ask NUMERIC,
@@ -48,8 +50,91 @@ class TableChecker():
                 amplitude_pct NUMERIC,
                 fechamento_anterior NUMERIC,
                 var_dia_real NUMERIC,
-                var_dia_pct NUMERIC,
-                PRIMARY KEY (data, par_moeda)
+                var_dia_pct NUMERIC
+            );"""
+
+            self.db.executa_query(query, commit=True)
+
+            # -- Tabela: Dólar diário (coleta diária)
+            query = """
+            CREATE TABLE IF NOT EXISTS silver.cambio_diario_peso (
+                data DATE PRIMARY KEY,
+                par_moeda TEXT NOT NULL,
+                bid NUMERIC,
+                ask NUMERIC,
+                high NUMERIC,
+                low NUMERIC,
+                var_bid NUMERIC,
+                pct_change NUMERIC,
+                preco_medio NUMERIC,
+                spread NUMERIC,
+                amplitude_pct NUMERIC,
+                fechamento_anterior NUMERIC,
+                var_dia_real NUMERIC,
+                var_dia_pct NUMERIC
+            );"""
+
+            self.db.executa_query(query, commit=True)
+
+            # -- Tabela: Dólar diário (coleta diária)
+            query = """
+            CREATE TABLE IF NOT EXISTS silver.cambio_diario_libra (
+                data DATE PRIMARY KEY,
+                par_moeda TEXT NOT NULL,
+                bid NUMERIC,
+                ask NUMERIC,
+                high NUMERIC,
+                low NUMERIC,
+                var_bid NUMERIC,
+                pct_change NUMERIC,
+                preco_medio NUMERIC,
+                spread NUMERIC,
+                amplitude_pct NUMERIC,
+                fechamento_anterior NUMERIC,
+                var_dia_real NUMERIC,
+                var_dia_pct NUMERIC
+            );"""
+
+            self.db.executa_query(query, commit=True)
+
+            # -- Tabela: Dólar diário (coleta diária)
+            query = """
+            CREATE TABLE IF NOT EXISTS silver.cambio_diario_euro (
+                data DATE PRIMARY KEY,
+                par_moeda TEXT NOT NULL,
+                bid NUMERIC,
+                ask NUMERIC,
+                high NUMERIC,
+                low NUMERIC,
+                var_bid NUMERIC,
+                pct_change NUMERIC,
+                preco_medio NUMERIC,
+                spread NUMERIC,
+                amplitude_pct NUMERIC,
+                fechamento_anterior NUMERIC,
+                var_dia_real NUMERIC,
+                var_dia_pct NUMERIC
+            );"""
+
+            self.db.executa_query(query, commit=True)
+
+            # -- Tabela: Dólar diário (coleta diária)
+            query = """
+            CREATE TABLE IF NOT EXISTS silver.cambio_diario_dolar (
+                data DATE PRIMARY KEY,
+                par_moeda TEXT NOT NULL,
+                bid NUMERIC,
+                ask NUMERIC,
+                high NUMERIC,
+                low NUMERIC,
+                var_bid NUMERIC,
+                pct_change NUMERIC,
+                preco_medio NUMERIC,
+                spread NUMERIC,
+                amplitude_pct NUMERIC,
+                fechamento_anterior NUMERIC,
+                var_dia_real NUMERIC,
+                var_dia_pct NUMERIC
             );"""
 
             self.db.executa_query(query, commit=True)
@@ -151,9 +236,10 @@ class TableChecker():
             CREATE TABLE IF NOT EXISTS meta.controle_populacao (
                 schema_nome     TEXT NOT NULL,
                 tabela_nome     TEXT NOT NULL,
-                empresa         TEXT NOT NULL,
-                populado        BOOLEAN DEFAULT FALSE,
-                data_populacao  DATE,
+                nome_serie      TEXT NOT NULL,
+                carga_inicial DATE,
+                ultima_execucao DATE,
+                proxima_execucao DATE,
                 observacao      TEXT,
                 PRIMARY KEY (schema_nome, tabela_nome)
             );"""
@@ -182,14 +268,14 @@ class TableChecker():
                 f"Não foi possível verificar as tabelas: {e}")
             raise
 
-    def last_date(self, camada, tabela, empresa, campo_data):
+    def last_date(self, camada, tabela, nome_serie, campo_data):
 
         # verifica a data da última informação inserida em determinada tabela.
         try:
             query = """
-                SELECT MAX(%s) FROM %s.%s WHERE empresa = %s;
+                SELECT MAX(%s) FROM %s.%s WHERE nome_serie = %s;
             """
-            valores = (campo_data, camada, tabela, empresa)
+            valores = (campo_data, camada, tabela, nome_serie)
 
             last_date = self.db.fetch_data(
                 query=query, valores=valores, tipo_fetch="one")
@@ -200,7 +286,7 @@ class TableChecker():
             self.logger.error(
                 f"Não foi possível verificar as tabelas: {e}")
 
-    def register_populated(self, camada, tabela, empresa, status, data_populated, observation):
+    def register_populated(self, camada, tabela, nome_serie, inicial, data_exec, prox_data, obs):
         """
         Registra ou atualiza o status de população de uma tabela no schema 'meta'.
 
@@ -219,24 +305,25 @@ class TableChecker():
         """
 
         self.logger.info(
-            f"Atualizando informação sobre carga da tabela: {camada}.{tabela} para empresa {empresa}")
+            f"Atualizando informações sobre população para {camada}.{tabela}")
 
         query = """
-                INSERT INTO meta.controle_populacao (schema_nome, tabela_nome, empresa, populado, data_populacao, observacao) 
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO meta.controle_populacao (schema_nome, tabela_nome, nome_serie, carga_inicial, ultima_execucao, proxima_execucao, observacao) 
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (schema_nome, tabela_nome)
                 DO UPDATE SET
-                    populado = EXCLUDED.populado,
-                    data_populacao = EXCLUDED.data_populacao,
+                    proxima_execucao = EXCLUDED.proxima_execucao,
+                    ultima_execucao = EXCLUDED.ultima_execucao,
                     observacao = EXCLUDED.observacao;
-            """
+               """
 
-        valores = (camada, tabela, empresa, status,
-                   data_populated, observation)
+        valores = (camada, tabela, nome_serie, inicial,
+                   data_exec, prox_data, obs)
 
         try:
             self.db.executa_query(query, valores=valores, commit=True)
-            self.logger.info(f"Dados atualizados com sucesso para: {empresa}")
+            self.logger.info(
+                f"Dados atualizados com sucesso para: {nome_serie}")
             return True
 
         except Exception as e:
@@ -244,57 +331,35 @@ class TableChecker():
                 f"Erro ao atualizar/inserir dados sobre tabelas populadas em: {camada}.{tabela}. Detalhes: {e}")
         return False
 
-    def check_populated(self, camada, tabela, empresa, resposta: str = 'bool') -> Union[bool, Optional[Tuple]]:
+    def last_pop(self, camada, tabela, nome_serie):
         """
         Verifica se a tabela já foi populada com base no controle em meta.controle_populacao.
 
         args:
             camada: str = o nome da camada = 'silver' ou 'gold'
             tabela: str = o nome da tabela a ser validada
-            resposta: str = se 'bool': apenas verifica se a tabela consta populada
-                            se 'dados': devolve o registro completo sobre a tabela
+
 
         Returns
         -------
-            se resposta = 'bool' = bool presente no registro referente a essa tabela.
-            se resposta = 'dados' = tuple or None
-                Retorna os dados do registro (se houver) ou None se não encontrado.
+            return: bool or None
         """
-        if resposta not in ("bool", "dados"):
-            raise ValueError(
-                "O parâmetro 'resposta' deve ser 'bool' ou 'dados'.")
 
-        if resposta == 'bool':
-            query = """
-                SELECT populado FROM meta.controle_populacao
-                WHERE schema_nome = %s AND tabela_nome = %s AND empresa = %s;
-            """
+        query = f"SELECT proxima_execucao FROM {camada}.{tabela} WHERE nome_serie = %s;"
+        valores = (nome_serie,)
 
-            try:
-                dados = self.db.fetch_data(query=query, valores=(
-                    camada, tabela, empresa), tipo_fetch="one")
-                if dados and len(dados) > 0:
-                    return dados[0]
-                else:
-                    return False
+        try:
+            quando = self.db.fetch_data(
+                query=query, valores=valores, tipo_fetch="one")
 
-            except Exception as e:
-                self.logger.error(
-                    f"Falha ao validar população de {camada}.{tabela}. Detalhes: {e}")
-                return False
+            if quando is None:
+                return None
+            else:
+                proxima_execucao = quando[0]
+                hoje = datetime.today().date()
+                return hoje >= proxima_execucao
 
-        else:
-            query = """
-                SELECT * FROM meta.controle_populacao
-                WHERE schema_nome = %s AND tabela_nome = %s AND empresa = %s;
-            """
-
-            try:
-                dados = self.db.fetch_data(query=query, valores=(
-                    camada, tabela, empresa), tipo_fetch="one")
-                return dados
-
-            except Exception as e:
-                self.logger.error(
-                    f"Falha ao validar população de {camada}.{tabela}. Detalhes: {e}")
-                return False
+        except Exception as e:
+            self.logger.error(
+                f"Falha ao validar população de {camada}.{tabela}. Detalhes: {e}")
+            return None

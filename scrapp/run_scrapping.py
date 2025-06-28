@@ -96,9 +96,7 @@ class ScrapperRun():
                 table_checker=tables)
 
             try:
-                scrap.busca_histórico_macroeconomia()
-
-                # scrap.busca_dados_macro_atuais()
+                scrap.harvest()
 
                 # scrap.busca_valores_fechamento()
 

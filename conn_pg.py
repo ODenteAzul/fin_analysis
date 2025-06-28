@@ -68,9 +68,11 @@ class PostGreSQL():
             self.logger.error(f"Erro de conexão ao executar a query: {e}")
             return False
         except psycopg2.ProgrammingError as e:
+            self.conn.rollback()
             self.logger.error(f"Erro de sintaxe SQL: {e}")
             return False
         except psycopg2.Error as e:
+            self.conn.rollback()
             self.logger.error(f"Erro geral do banco de dados: {e}")
             return False
 

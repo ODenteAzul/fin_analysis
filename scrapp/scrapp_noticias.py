@@ -1,6 +1,4 @@
 import requests
-import yfinance as yf
-import pandas as pd
 import numpy as np
 from datetime import date
 from gdeltdoc import GdeltDoc, Filters
@@ -10,7 +8,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
 from bs4 import BeautifulSoup
-from scrapp.scrapp_indices import ScrappIndices
 
 
 class ScrappingNoticias():
@@ -129,6 +126,7 @@ class ScrappingNoticias():
             raise
 
     def _verificar_noticia(self, titulo, texto, noticias_salvas, empresa):
+
         for noticia in noticias_salvas:
             if texto == "texto_indisponivel":
                 if self._titulos_sao_similares(titulo, noticia["titulo"]) or self._verificar_relevancia(titulo, empresa):
@@ -137,7 +135,7 @@ class ScrappingNoticias():
                     return False
             else:
                 if isinstance(noticia["titulo"], str) and isinstance(noticia["texto"], str):
-                    if self._titulos_sao_similares(titulo, noticia["titulo"]) or self._verificar_similaridade(texto, noticia["texto"]) > 0.70 or self._verificar_relevancia(texto):
+                    if self._titulos_sao_similares(titulo, noticia["titulo"]) or self._verificar_similaridade(texto, noticia["texto"]) > 0.70 or self._verificar_relevancia(texto, empresa):
                         self.logger.info(
                             "Notícia duplicada ou não relevante encontrada. Ignorando...")
                         return False
@@ -379,54 +377,78 @@ class ScrappingNoticias():
 
     def buscar_noticias(self):
 
-        for sigla, nome in self.ls_empresas:
-            self.logger.info(
-                f"Buscando notícias recentes para a empresa '{nome}:{sigla}'")
+        try:
 
-            API_NEWS = "47f7a2378b0a4a6c9096689cf1956945"
-            url = f"https://newsapi.org/v2/everything?q={nome}&language=pt&apiKey={API_NEWS}"
+            for tik in self.ls_empresas:
 
-            response = requests.get(url)
-            data = response.json()
+                self.logger.info(
+                    f"Buscando notícias recentes para a empresa '{tik['tabela']}'")
 
-            for artigo in data.get("articles", [])[:10]:
-                titulo = artigo["title"]
-                url = artigo["url"]
-                conteudo = artigo["content"]
-                data_pub = artigo["publishedAt"]
-                data_pub = datetime.strptime(
-                    data_pub, '%Y-%m-%dT%H:%M:%SZ').date()
+                API_NEWS = "47f7a2378b0a4a6c9096689cf1956945"
+                url = f"https://newsapi.org/v2/everything?q={tik['tabela']}&language=pt&apiKey={API_NEWS}"
 
-                # Verificar se a notícia já está no banco
-                query = "SELECT COUNT(*) FROM silver.noticias WHERE titulo = %s AND cod_bolsa = %s"
-                valores = (titulo, sigla)
-                news = self.db.fetch_data(query, valores, tipo_fetch="one")
+                response = requests.get(url)
+                data = response.json()
 
-                if news and news[0] == 0:
+                noticias_salvas = []
 
-                    # se não está no banco ainda, verificamos se não é repetida dentro do lote
-                    noticias_salvas = []
-                    # verifica se a notícia não é reperida dentro desse lote recebido.
-                    if self._verificar_noticia(titulo, conteudo, noticias_salvas, nome):
-                        self.logger.info(
-                            f"Título: {artigo.title}")
-                        noticia = {
-                            "titulo": artigo.title,
-                            "texto": conteudo
-                        }
+                for artigo in data.get("articles", [])[:10]:
+                    titulo = artigo["title"]
+                    url = artigo["url"]
+                    conteudo = artigo["content"]
+                    data_pub = artigo["publishedAt"]
+                    data_pub = datetime.strptime(
+                        data_pub, '%Y-%m-%dT%H:%M:%SZ').date()
 
-                        query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
-                        valores = (sigla, titulo, conteudo, data_pub, url)
+                    # Verificar se a notícia já está no banco
+                    query = "SELECT COUNT(*) FROM silver.noticias WHERE titulo = %s AND cod_bolsa = %s"
+                    valores = (titulo, tik['ticker'])
+                    news = self.db.fetch_data(query, valores, tipo_fetch="one")
 
-                        try:
+                    if news and news[0] == 0:
+                        # verifica se a notícia não é reperida dentro desse lote recebido.
+
+                        if len(noticias_salvas) > 0:
+
+                            if self._verificar_noticia(titulo, conteudo, noticias_salvas, tik['tabela']):
+
+                                noticia = {
+                                    "titulo": titulo,
+                                    "texto": conteudo
+                                }
+
+                                query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                                valores = (tik['ticker'], titulo,
+                                           conteudo, data_pub, url)
+
+                                self.db.executa_query(
+                                    query, valores, commit=True)
+
+                                print(f"Nova notícia adicionada: {titulo}")
+
+                                noticias_salvas.append(noticia)
+
+                        else:
+
+                            noticia = {
+                                "titulo": titulo,
+                                "texto": conteudo
+                            }
+
+                            query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                            valores = (tik['ticker'], titulo,
+                                       conteudo, data_pub, url)
+
                             self.db.executa_query(
                                 query, valores, commit=True)
+
                             print(f"Nova notícia adicionada: {titulo}")
-                        except Exception as e:
-                            self.logger.error(
-                                f"Erro ao inserir notícia: {artigo.title}. Detalhes: {e}")
-                        finally:
+
                             noticias_salvas.append(noticia)
 
-            self.logger.info(
-                f"Novas notícias verificas com sucesso para '{nome}:{sigla}'.")
+                self.logger.info(
+                    f"Novas notícias verificas com sucesso para '{tik['tabela']}'.")
+
+        except Exception as e:
+            self.logger.error(
+                f"Houve um problema ao adquirir novas notícias para {tik['tabela']}, erro: {e}")

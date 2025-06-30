@@ -1,9 +1,8 @@
 from utils.utils import LoggerCustomizado
-from conn_pg import PostGreSQL
+from utils.conn_pg import PostGreSQL
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from scrapp.run_scrapping import ScrapperRun
-# from scrapp_valores.run_macroeco import MacroEconomics
 from utils.table_checker import TableChecker
 
 
@@ -26,10 +25,14 @@ def run_processes():
     hora_inicio_geral = datetime.now(tz=tz_brasil)
 
     # empresas que serão analisadas
-    ls_empresas = {"EMBR3.SA": "Embraer",
-                   "WEG3.SA": "WEG",
-                   "KLBN4.SA": "Klabin",
-                   "PETR4.SA": "Petrobras"}
+    ls_empresas = [{"ticker": "EMBR3.SA", "tabela": "Embraer"},
+                   {"ticker": "WEGE3.SA", "tabela": "WEG"},
+                   {"ticker": "KLBN4.SA", "tabela": "Klabin"},
+                   {"ticker": "PETR4.SA", "tabela": "Petrobras"},
+                   {"ticker": "ABEV3.SA", "tabela": "Ambev"},
+                   {"ticker": "ITUB4.SA", "tabela": "Itaú Unibanco"},
+                   {"ticker": "BPAC11.SA", "tabela": "BTG Pactual"},
+                   {"ticker": "KEPL3.SA", "tabela": "Kepler Weber"}]
 
     title = r"""
     #######################################################################################
@@ -64,18 +67,6 @@ def run_processes():
     end_time = datetime.now(tz=tz_brasil)
     log.info(f"Scrapping finalizado com sucesso em: {end_time - hora_inicio}")
 
-    log.info("Etapa 2: Coletando dados Macro Econômicos...")
-
-    # go_me = MacroEconomics(log,
-    #                       db,
-    #                       conn,
-    #                       cursor)
-
-    # go_me.executa_macro(coleta_diaria_macro)
-
-    end_time = datetime.now(tz=tz_brasil)
-    log.info(f"Etapa 2: Finalizada com sucesso, em: {end_time - hora_inicio}")
-
     db.fechar_conexao()
 
     end_time = datetime.now(tz=tz_brasil)
@@ -84,3 +75,16 @@ def run_processes():
 
 if __name__ == "__main__":
     run_processes()
+
+# if __name__ == "__main__":
+#    executa_scrapping = True
+#    executa_macro = True
+
+#    if len(sys.argv) > 1:
+#        arg = sys.argv[1].lower()
+#        if arg == "scrapping":
+#            executa_macro = False
+#        elif arg == "macro":
+#            executa_scrapping = False
+
+#    run_processes(executa_scrapping=executa_scrapping, executa_macro=executa_macro)

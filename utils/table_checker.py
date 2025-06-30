@@ -260,6 +260,23 @@ class TableChecker():
 
             self.db.executa_query(query, commit=True)
 
+            query = """
+            CREATE TABLE IF NOT EXISTS silver.cotacao_pregao (
+                datatime timestamptz,
+                ativo TEXT NOT NULL,
+                preco_abertura NUMERIC,
+                preco_minimo NUMERIC,
+                preco_maximo NUMERIC,
+                preco_fechamento NUMERIC,
+                volume_negociado NUMERIC,
+                media_movel_50 NUMERIC,
+                media_movel_200 NUMERIC,
+                origem TEXT NOT NULL,
+                PRIMARY KEY (ativo, datatime)
+            );"""
+
+            self.db.executa_query(query, commit=True)
+
             self.logger.info(
                 f"Tabelas e SCHEMAS verificadas com sucesso!")
 

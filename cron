@@ -1,0 +1,22 @@
+# Scrapping: 7:00 da manhã nos dias úteis
+0 7 * * 1-5 /usr/local/bin/run_scrapping.sh >> /var/log/scrapping.log 2>&1
+
+# tentativa 2 as 7
+30 7 * * 1-5 /usr/local/bin/run_scrapping.sh >> /var/log/scrapping.log 2>&1
+
+# tentativa 2 as 7
+0 8 * * 1-5 /usr/local/bin/run_scrapping.sh >> /var/log/scrapping.log --fim-do-dia
+
+# Macro dados: tentativa 1 às 21:30
+30 21 * * 1-5 /usr/local/bin/run_macro.sh >> /var/log/macro.log 2>&1
+
+# tentativa 2 às 22:00
+0 22 * * 1-5 /usr/local/bin/run_macro.sh >> /var/log/macro.log 2>&1
+
+# tentativa 3 às 22:30
+30 22 * * 1-5 /usr/local/bin/run_macro.sh >> /var/log/macro.log --fim-do-dia 
+
+# Cotações pregão = horário bolsa dias 1-5
+# fechamentos = fim, dos dias 1-5
+# noticias sempre, intervalo a definir
+# definir cálculos de silver para gold

@@ -1,6 +1,6 @@
 import requests
 import yfinance as yf
-from datetime import date, datetime, timedelta
+from datetime import date, time, datetime, timedelta
 from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta
 import pandas as pd
@@ -44,26 +44,31 @@ class ScrappIndices():
         datetime.date
             Data da próxima execução programada.
         """
-        frequencia = frequencia.lower()
+        try:
+            frequencia = frequencia.lower()
 
-        if frequencia == "diaria":
-            return data_base + timedelta(days=1)
+            if frequencia == "diaria":
+                return data_base + timedelta(days=1)
 
-        elif frequencia == "mensal":
-            return (data_base.replace(day=1) + relativedelta(months=1))
+            elif frequencia == "mensal":
+                return (data_base.replace(day=1) + relativedelta(months=1))
 
-        elif frequencia == "trimestral":
-            mes_atual = data_base.month
-            mes_inicio_trimestre = 1 + 3 * ((mes_atual - 1) // 3)
-            data_inicio_trimestre = data_base.replace(
-                month=mes_inicio_trimestre, day=1)
+            elif frequencia == "trimestral":
+                mes_atual = data_base.month
+                mes_inicio_trimestre = 1 + 3 * ((mes_atual - 1) // 3)
+                data_inicio_trimestre = data_base.replace(
+                    month=mes_inicio_trimestre, day=1)
 
-            return data_inicio_trimestre + relativedelta(months=3)
+                return data_inicio_trimestre + relativedelta(months=3)
 
-        else:
-            return data_base + timedelta(days=1)
+            else:
+                return data_base + timedelta(days=1)
 
-    def harvest(self):
+        except Exception as e:
+            self.logger.error(
+                f"Não foi possível calcular a próxima data de execução: {e}")
+
+    def colheira_diaria(self):
 
         self.logger.info(
             "Buscando atualizações de índices econômicos..")
@@ -131,13 +136,13 @@ class ScrappIndices():
 
             for par in pares_moeda:
 
+                self.logger.info(
+                    f"Verificando histórico de cotação: {par['par']}...")
+
                 atualizar = self.table_checker.last_pop(
                     camada='meta', tabela='controle_populacao', nome_serie=par['par'])
 
                 if atualizar is None:
-
-                    self.logger.info(
-                        f"Verificando histórico de cotação: {par['par']} ...")
 
                     self._atualiza_cambio(
                         par_moeda=par['par'],
@@ -158,7 +163,7 @@ class ScrappIndices():
                     else:
 
                         self.logger.info(
-                            f"Dados dpara {par['par']}, estão atualizados.")
+                            f"Dados para {par['par']}, estão atualizados.")
 
             for juros in juros_eua:
 
@@ -168,7 +173,7 @@ class ScrappIndices():
                 if atualizar is None:
 
                     self.logger.info(
-                        f"Verificando histórico de {juros["tabela"]} ...")
+                        f"Verificando histórico de {juros["tabela"]}...")
 
                     self._atualiza_juros_eua(
                         serie=juros["serie"],
@@ -193,7 +198,7 @@ class ScrappIndices():
                     else:
 
                         self.logger.info(
-                            f"Dados dpara {juros["tabela"]}, estão atualizados.")
+                            f"Dados para {juros["tabela"]}, estão atualizados.")
 
             self.logger.info(
                 f"Verificando fechamentos IBOVESPA...")
@@ -224,13 +229,14 @@ class ScrappIndices():
 
         except Exception as e:
             self.logger.error(
-                f"Não foi possível obter o histórico de dados macro econômicos: {e}")
+                f"Não foi possível obter os índices: {e}")
 
     def _atualiza_serie_ibovespa(self, hoje=True):
         try:
             ibov = yf.Ticker("^BVSP")
             br_time = datetime.now(ZoneInfo("America/Sao_Paulo"))
             hoje_data = br_time.date()
+            sucesso = False
 
             if hoje:
                 hoje_str = hoje_data.strftime("%Y-%m-%d")
@@ -266,20 +272,27 @@ class ScrappIndices():
 
                     self.db.executa_query(query, valores, commit=True)
 
-                    query = """WITH subquery AS (
-                                    SELECT data,
-                                        AVG(preco_fechamento) OVER (ORDER BY data ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
-                                        AVG(preco_fechamento) OVER (ORDER BY data ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
-                                    FROM silver.ibovespa_diario
-                                    WHERE media_movel_50 IS NULL OR media_movel_200 IS NULL
-                                )
-                                UPDATE silver.ibovespa_diario AS p
-                                SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
-                                    media_movel_200 = COALESCE(subquery.media_200, p.media_movel_200)
-                                FROM subquery
-                                WHERE p.data = subquery.data;"""
+                    sucesso = True
 
-                    self.db.executa_query(query, commit=True)
+                    try:
+                        query = """WITH subquery AS (
+                                        SELECT data,
+                                            AVG(preco_fechamento) OVER (ORDER BY data ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
+                                            AVG(preco_fechamento) OVER (ORDER BY data ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
+                                        FROM silver.ibovespa_diario
+                                        WHERE media_movel_50 IS NULL OR media_movel_200 IS NULL
+                                    )
+                                    UPDATE silver.ibovespa_diario AS p
+                                    SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
+                                        media_movel_200 = COALESCE(subquery.media_200, p.media_movel_200)
+                                    FROM subquery
+                                    WHERE p.data = subquery.data;"""
+
+                        self.db.executa_query(query, commit=True)
+
+                    except Exception as e:
+                        self.logger.error(
+                            f"Não foi possível calcular médias móveis para IBOVESPA, erro: {e}")
 
                 else:
                     self.logger.info(
@@ -331,40 +344,52 @@ class ScrappIndices():
                     self.db.executa_query(
                         query, valores, commit=True, many=True)
 
-                    query = """UPDATE silver.ibovespa_diario AS p
-                                    SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
-                                        media_movel_200 = COALESCE(
-                                            subquery.media_200, p.media_movel_200)
-                                    FROM (
-                                        SELECT data,
-                                            AVG(preco_fechamento) OVER (ORDER BY data ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
-                                            AVG(preco_fechamento) OVER (ORDER BY data ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
-                                    FROM silver.ibovespa_diario
-                                    ) AS subquery
-                                    WHERE p.data = subquery.data;"""
-
-                    self.db.executa_query(query, commit=True)
-
-                    proxima = hoje_data + timedelta(days=1)
-
-                    self.table_checker.register_populated(
-                        camada='silver',
-                        tabela='ibovespa_diario',
-                        nome_serie='ibovespa_diario',
-                        inicial=data_inicial,
-                        data_exec=hoje_data,
-                        prox_data=proxima,
-                        obs=pop_string
-                    )
+                    sucesso = True
 
                     self.logger.info(f"Valores IBOVESPA obtido com sucesso.")
 
-                else:
+                    try:
+                        query = """UPDATE silver.ibovespa_diario AS p
+                                        SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
+                                            media_movel_200 = COALESCE(
+                                                subquery.media_200, p.media_movel_200)
+                                        FROM (
+                                            SELECT data,
+                                                AVG(preco_fechamento) OVER (ORDER BY data ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
+                                                AVG(preco_fechamento) OVER (ORDER BY data ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
+                                        FROM silver.ibovespa_diario
+                                        ) AS subquery
+                                        WHERE p.data = subquery.data;"""
 
-                    self.logger.info(
-                        f"IBOVESPA não retornou dados — agendada para retry.")
+                        self.db.executa_query(query, commit=True)
 
-                    proxima = hoje_data + timedelta(days=1)
+                        self.logger.info(
+                            f"Médias móveis do IBOVESPA calculados com sucesso.")
+
+                    except Exception as e:
+                        self.logger.error(
+                            f"Não foi possível calcular médias móveis para IBOVESPA, erro: {e}")
+
+            if sucesso:
+
+                proxima = self._calcula_proxima_execucao(hoje_data, 'diaria')
+
+                self.table_checker.register_populated(
+                    camada='silver',
+                    tabela='ibovespa_diario',
+                    nome_serie='ibovespa_diario',
+                    inicial=data_inicial,
+                    data_exec=hoje_data,
+                    prox_data=proxima,
+                    obs=pop_string
+                )
+
+            else:
+
+                if hoje:
+
+                    self.logger.warning(
+                        f"IBOVESPA não retornou dados do fechamento atual — agendada para retry.")
 
                     self.table_checker.register_populated(
                         camada='silver',
@@ -372,40 +397,86 @@ class ScrappIndices():
                         nome_serie='ibovespa_diario',
                         inicial=data_inicial,
                         data_exec=hoje_data,
-                        prox_data=proxima,
+                        prox_data=hoje_data,
                         obs="Dado não retornado — agendado para retry."
                     )
+
+                else:
+
+                    self.logger.warning(
+                        f"Não foi possível obter a carga inicial para IBOVESPA — agendada para retry.")
 
         except Exception as e:
             self.logger.error(
                 f"Não foi possível obter o fechamento do IBOVESPA para {hoje_data}, erro: {e}")
 
-    def _recalcula_variacoes_cambio(self, camada, tabela, par_moeda):
+    def _recalcula_variacoes_cambio(self, camada, tabela, hoje, hoje_data):
 
-        query = f"""
-            WITH ultimas_duas AS (
-                SELECT
-                    data,
-                    par_moeda,
-                    bid,
-                    LAG(bid) OVER (PARTITION BY par_moeda ORDER BY data) AS fechamento_anterior
-                FROM {camada}.{tabela}
-                WHERE par_moeda = %s
-                    AND data >= (SELECT MAX(data) - INTERVAL '1 day' FROM {camada}.{tabela} WHERE par_moeda = %s)
-            )
-            UPDATE {camada}.{tabela} t
-            SET
-                fechamento_anterior = u.fechamento_anterior,
-                var_dia_real = t.bid - u.fechamento_anterior,
-                var_dia_pct = CASE
-                    WHEN u.fechamento_anterior <> 0 THEN ((t.bid - u.fechamento_anterior) / u.fechamento_anterior) * 100
-                    ELSE NULL
-                END
-            FROM ultimas_duas u
-            WHERE t.par_moeda = u.par_moeda AND t.data = u.data;
+        try:
+            base_sql = f"""
+                UPDATE {camada}.{tabela} c
+                SET 
+                    preco_medio = (c.bid + c.ask) / 2.0,
+                    spread = c.ask - c.bid,
+                    amplitude_pct = CASE 
+                        WHEN c.low > 0 THEN ((c.high - c.low) / c.low) * 100
+                        ELSE NULL 
+                    END,
+                    fechamento_anterior = (
+                        SELECT c2.bid
+                        FROM {camada}.{tabela} c2
+                        WHERE c2.data = c.data - INTERVAL '1 day'
+                    ),
+                    var_dia_real = CASE 
+                        WHEN (
+                            SELECT c2.bid 
+                            FROM {camada}.{tabela} c2
+                            WHERE c2.data = c.data - INTERVAL '1 day'
+                        ) IS NOT NULL 
+                        THEN c.bid - (
+                            SELECT c2.bid 
+                            FROM {camada}.{tabela} c2
+                            WHERE c2.data = c.data - INTERVAL '1 day'
+                        )
+                        ELSE NULL 
+                    END,
+                    var_dia_pct = CASE 
+                        WHEN (
+                            SELECT c2.bid 
+                            FROM {camada}.{tabela} c2
+                            WHERE c2.data = c.data - INTERVAL '1 day'
+                        ) > 0
+                        THEN ((c.bid - (
+                            SELECT c2.bid 
+                            FROM {camada}.{tabela} c2
+                            WHERE c2.data = c.data - INTERVAL '1 day'
+                        )) / (
+                            SELECT c2.bid 
+                            FROM {camada}.{tabela} c2
+                            WHERE c2.data = c.data - INTERVAL '1 day'
+                        )) * 100
+                        ELSE NULL 
+                    END
             """
 
-        self.db.executa_query(query, (par_moeda, par_moeda), commit=True)
+            if hoje:
+                base_sql += f"\nWHERE c.data = '{hoje_data.strftime('%Y-%m-%d')}';"
+            else:
+                base_sql += """
+                WHERE 
+                    preco_medio IS NULL OR
+                    spread IS NULL OR
+                    amplitude_pct IS NULL OR
+                    fechamento_anterior IS NULL OR
+                    var_dia_real IS NULL OR
+                    var_dia_pct IS NULL;
+                """
+
+            self.db.executa_query(base_sql, commit=True)
+
+        except Exception as e:
+            self.logger.error(
+                f"Erro ao calcular as variações de Cambio: {e}")
 
     def _atualiza_cambio(self, par_moeda, camada, tabela, hoje=True):
 
@@ -506,12 +577,13 @@ class ScrappIndices():
 
                 self.db.executa_query(query, valores, commit=True, many=many)
 
-                self._recalcula_variacoes_cambio(camada, tabela, par_moeda)
+                self._recalcula_variacoes_cambio(
+                    camada, tabela, hoje, hoje_data)
 
                 self.logger.info(
                     f"Coleta do par {par_moeda} obtida e gravada com sucesso.")
 
-                proxima = hoje_data + timedelta(days=1)
+                proxima = self._calcula_proxima_execucao(hoje_data, 'diaria')
 
                 self.table_checker.register_populated(
                     camada=camada,
@@ -524,20 +596,26 @@ class ScrappIndices():
                 )
 
             else:
-                self.logger.info(
-                    f"{par_moeda} não retornou dados — agendada para retry.")
 
-                proxima = hoje_data + timedelta(days=1)
+                if hoje:
 
-                self.table_checker.register_populated(
-                    camada=camada,
-                    tabela=tabela,
-                    nome_serie=par_moeda,
-                    inicial=data_inicial,
-                    data_exec=hoje_data,
-                    prox_data=proxima,
-                    obs="Dado não retornado — agendado para retry."
-                )
+                    self.logger.warning(
+                        f"{par_moeda} não retornou dados do fechamento atual — agendada para retry.")
+
+                    self.table_checker.register_populated(
+                        camada=camada,
+                        tabela=tabela,
+                        nome_serie=tabela,
+                        inicial=data_inicial,
+                        data_exec=hoje_data,
+                        prox_data=hoje_data,
+                        obs="Dado não retornado — agendado para retry."
+                    )
+
+                else:
+
+                    self.logger.warning(
+                        f"Não foi possível obter a carga inicial para {par_moeda} — agendada para retry.")
 
         except Exception as e:
             self.logger.error(
@@ -635,39 +713,30 @@ class ScrappIndices():
                 )
 
             else:
-                self.logger.info(
-                    f"{nome_serie} não retornou dados — agendada para retry.")
 
-                nova_data = hoje_data + timedelta(days=1)
+                if hoje:
 
-                self.table_checker.register_populated(
-                    camada=camada,
-                    tabela=tabela,
-                    nome_serie=tabela,
-                    inicial=data_inicial,
-                    data_exec=hoje_data,
-                    prox_data=nova_data,
-                    obs="Dado não retornado — agendado para retry."
-                )
+                    self.logger.warning(
+                        f"{nome_serie} não retornou dados do fechamento atual — agendada para retry.")
+
+                    self.table_checker.register_populated(
+                        camada=camada,
+                        tabela=tabela,
+                        nome_serie=tabela,
+                        inicial=data_inicial,
+                        data_exec=hoje_data,
+                        prox_data=hoje_data,
+                        obs="Dado não retornado — agendado para retry."
+                    )
+
+                else:
+
+                    self.logger.warning(
+                        f"Não foi possível obter a carga inicial para {nome_serie} — agendada para retry.")
 
         except Exception as e:
             self.logger.error(
                 f"Erro ao obter dados do {nome_serie}: {e}")
-
-    def busca_pib(self, atual=True):
-        try:
-            url = "https://servicodados.ibge.gov.br/api/v3/agregados/5932/periodos/all"
-            response = requests.get(url)
-            dados_pib = response.json()
-
-            self.logger.info(f"PIB obtido com sucesso.")
-
-            return dados_pib
-
-        except Exception as e:
-            self.logger.error(
-                f"Erro ao obter o PIB: {e}")
-            return None
 
     def _atualiza_juros_eua(self, serie=None, hoje=True, camada=None, tabela=None, frequencia=None):
 
@@ -762,285 +831,27 @@ class ScrappIndices():
 
             else:
 
-                self.logger.info(
-                    f"Juros ({serie}) não retornou dados — agendada para retry.")
+                if hoje:
 
-                proxima = hoje_data + timedelta(days=1)
+                    self.logger.warning(
+                        f"{serie} não retornou dados do fechamento atual — agendada para retry.")
 
-                self.table_checker.register_populated(
-                    camada=camada,
-                    tabela=tabela,
-                    nome_serie=tabela,
-                    inicial=data_inicial,
-                    data_exec=hoje_data,
-                    prox_data=proxima,
-                    obs="Dado não retornado — agendado para retry."
-                )
+                    self.table_checker.register_populated(
+                        camada=camada,
+                        tabela=tabela,
+                        nome_serie=tabela,
+                        inicial=data_inicial,
+                        data_exec=hoje_data,
+                        prox_data=hoje_data,
+                        obs="Dado não retornado — agendado para retry."
+                    )
+
+                else:
+
+                    self.warning.warning(
+                        f"Não foi possível obter a carga inicial para {serie} — agendada para retry.")
 
         except Exception as e:
             self.logger.error(
                 f"Erro ao obter os Juros ({serie}) EUA: {e}")
             return None
-
-    def sentimento_financeiro(self, ticker="EMBR3.SA"):
-        try:
-            ativo = yf.Ticker(ticker)
-            historico = ativo.history(period="1mo")
-
-            variacao_pct = (
-                (historico["Close"].iloc[-1] / historico["Close"].iloc[-10]) - 1) * 100
-            volume_medio = historico["Volume"].mean()
-
-            if variacao_pct > 5 and volume_medio > historico["Volume"].iloc[-10]:
-                sentimento = "Positivo"
-            elif variacao_pct < -5 and volume_medio > historico["Volume"].iloc[-10]:
-                sentimento = "Negativo"
-            else:
-                sentimento = "Neutro"
-
-            self.logger.info(f"Sentimento Financeiro obtido com sucesso.")
-
-            return sentimento
-
-        except Exception as e:
-            self.logger.error(
-                f"Erro ao obter o Sentimento Financeiro para{ticker}: {e}")
-            return None
-
-    def busca_valores_intra_diarios(inicio=None, fim=None):
-        """
-        Baixa os dados históricos da ação EMBR3 do site Investing.com.
-
-        Parameters
-        ----------
-        inicio : str
-            Data de início no formato 'dd/mm/yyyy'.
-        fim : str ou None
-            Data final no formato 'dd/mm/yyyy'. Se None, usa a data atual.
-
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame com colunas como Data, Último, Abertura, Máxima, Mínima, Var%
-        """
-        if inicio is None:
-            hoje = datetime.datetime.today()
-            inicio = hoje - relativedelta(years=10)
-            inicio = inicio.strftime("%d/%m/%Y")
-        if fim is None:
-            fim = datetime.datetime.today().strftime("%d/%m/%Y")
-
-        url_calendario = (
-            "https://www.investing.com/instruments/HistoricalDataAjax"
-        )
-        headers = {
-            "User-Agent": "Mozilla/5.0",
-            "X-Requested-With": "XMLHttpRequest",
-            "Referer": "https://www.investing.com/equities/embraer-on-nm-historical-data",
-        }
-
-        payload = {
-            "curr_id": 10409,
-            "smlID": 205086,
-            "header": "Embraer ON Histórico de Dados",
-            "st_date": inicio,
-            "end_date": fim,
-            "interval_sec": "Daily",
-            "sort_col": "date",
-            "sort_ord": "DESC",
-            "action": "historical_data"
-        }
-
-        response = requests.post(url_calendario, headers=headers, data=payload)
-        df = pd.read_html(response.text, thousands='.', decimal=',')[0]
-
-        # Tratamento e ordenação da tabela
-        df['Data'] = pd.to_datetime(df['Data'], format='%d.%m.%Y')
-        df.sort_values('Data', inplace=True)
-        df.reset_index(drop=True, inplace=True)
-
-        return df
-
-    def busca_valores_fechamento(self, days=1):
-
-        # Coletar preços históricos (somente na primeira execução)
-        self.logger.info("Vericando presença de preços históricos... ")
-
-        try:
-            for sigla, empresa in self.ls_empresas:
-
-                # primeiro o dólar diário
-                if not self.table_checker.last_pop(camada='silver', tabela='dolar_diario', empresa=sigla, resposta='bool'):
-                    query = "SELECT COUNT(*) FROM preco_acoes_diario;"
-                    dados_dolar = self.db.fetch_data(query, tipo_fetch="one")
-
-                    if dados_dolar and dados_dolar[0] == 0:
-                        pass  # criando...
-
-                # fechamento bolsa
-                if not self.table_checker.last_pop(camada='silver', tabela='ibovespa_diario', empresa=sigla, resposta='bool'):
-                    query = "SELECT COUNT(*) FROM preco_acoes_diario;"
-                    dados_bolsa = self.db.fetch_data(query, tipo_fetch="one")
-
-                    # Se o banco estiver vazio
-                    if dados_bolsa and dados_bolsa[0] == 0:
-
-                        self.logger.info(
-                            f"Não encontrados para a sigla: {sigla}")
-
-                        acao = yf.Ticker(sigla)
-
-                        historico = acao.history(period="10y")
-                        historico.index = pd.to_datetime(historico.index)
-                        historico.reset_index(inplace=True)
-                        print(historico.head())
-                        # print(historico.info())
-
-                        for date, row in historico.iterrows():
-                            query = """INSERT INTO ibovespa_diario (
-                                                cod_bolsa,
-                                                data_historico,
-                                                preco_abertura,
-                                                preco_minimo,
-                                                preco_maximo,
-                                                preco_fechamento,
-                                                volume_negociado,
-                                                media_movel_50,
-                                                media_movel_200)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"""
-                            valores = ("EMBR3.SA",
-                                       row["Date"].date(),
-                                       float(row["Open"]),
-                                       float(row["Low"]),
-                                       float(row["High"]),
-                                       float(row["Close"]),
-                                       int(row["Volume"]) if not pd.isna(
-                                           row["Volume"]) else 0,
-                                       None,
-                                       None)
-
-                            self.db.executa_query(query, valores, commit=True)
-
-                        self.logger.info(
-                            f"Dados encontrados e inseridos para: 'EMBR3.SA'")
-
-                        self.logger.info(f"Calculando médias móveis...")
-
-                        query = """UPDATE preco_acoes_diario AS p
-                                            SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
-                                                media_movel_200 = COALESCE(
-                                                    subquery.media_200, p.media_movel_200)
-                                            FROM (
-                                                SELECT data_historico,
-                                                    AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
-                                                    AVG(preco_fechamento) OVER (ORDER BY data_historico ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
-                                                FROM preco_acoes_diario
-                                            ) AS subquery
-                                            WHERE p.data_historico = subquery.data_historico;"""
-
-                        self.db.executa_query(query, commit=True)
-
-                        self.logger.info(
-                            f"Médias móveis calculadas com sucesso.")
-                    else:
-                        self.logger.info(f"Preços históricos já presentes.")
-
-        except Exception as e:
-            self.logger.error(
-                f"Houve um problema ao adquirir os dados históricos: {e}")
-            raise
-
-        self.logger.info(
-            f"Consulta de histórico de valores finalizada com sucesso.")
-
-    def busca_cotacao_atual(self, hora_abertura_bolsa,
-                            hora_fechamento_bolsa,
-                            dolar_inicio,
-                            dolar_fim):
-
-        self.logger.info(
-            "Verificando o horários para cotação atual...")
-
-        hora_atual = datetime.now().time()
-
-        if hora_abertura_bolsa <= hora_atual <= hora_fechamento_bolsa:
-            self.logger.info(
-                "Dentro do horário da BOVESPA: Iniciando a coleta de informações...")
-
-            # **Obter cotações atual**
-            self.logger.info(f"Obtendo a cotaçao na bolsa...")
-
-            acao = yf.Ticker("EMBR3.SA")
-            preco = float(acao.history(period="1d")["Close"].iloc[-1])
-
-            scraper = ScrappMacro(
-                logger=self.logger,
-                db=self.db,
-                conn=self.conn,
-                cursor=self.cursor)
-            ibovespa = scraper.busca_ibovespa()
-
-            query = "INSERT INTO precos_embraer_pregao (data_historico, cod_bolsa, preco_acao, ibovespa) VALUES (%s,%s,%s,%s)"
-            valores = (datetime.now(), 'EMBR3.SA', preco, ibovespa)
-
-            try:
-                self.db.executa_query(query, valores, commit=True)
-
-                self.logger.info(f"Dados da BOVESPA gravados para: 'EMBR3.SA'")
-
-            except Exception as e:
-                self.logger.error(
-                    f"Houve um problema ao obter os valores na bolsa: {e}")
-                raise
-
-        else:
-            self.logger.info(
-                "Fora do horário de funcionamento da Bolsa de Valores.")
-
-        if dolar_inicio <= hora_atual <= dolar_fim:
-
-            self.logger.info(
-                "Dentro do horário: Iniciando a coleta da cotação do Dólar...")
-
-            # **Obter cotações atual**
-            self.logger.info(f"Obtendo a cotaçao do Dólar...")
-
-            scraper = ScrappMacro(
-                logger=self.logger,
-                db=self.db,
-                conn=self.conn,
-                cursor=self.cursor)
-
-            df_dolar = scraper.buscar_dolar(atual=True)
-
-            self.logger.info(f"Salvando a cotaçao do Dólar...")
-
-            try:
-                # Garante que as colunas estão na ordem correta
-                colunas = ['data', 'bid', 'ask', 'high',
-                           'low', 'varBid', 'pctChange']
-                df_insert = df_dolar[colunas].copy()
-
-                df_insert['data'] = pd.to_datetime(df_insert['data'])
-
-                valores = tuple(df_dolar.iloc[0][[
-                                'data', 'bid', 'ask', 'high', 'low', 'varBid', 'pctChange']])
-
-                query = """
-                INSERT INTO dolar_diario (
-                    data_historico, bid, ask, high, low, varBid, pctChange
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """
-
-                self.db.executa_query(query, valores, commit=True)
-
-                self.logger.info(f"Dados do Dolar gravados com sucesso.")
-
-            except Exception as e:
-                self.logger.error(
-                    f"Houve um problema ao salvar os valores do Dólar: {e}")
-                raise
-
-        else:
-            self.logger.info(
-                "Fora do horário de coleta do Dólar.")

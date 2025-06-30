@@ -1,6 +1,6 @@
 from scrapp.scrapp_noticias import ScrappingNoticias
-from scrapp.scrapp_indices import ScrappIndices
-from utils.table_checker import TableChecker
+from scrapp.scrapp_fechamentos import ScrappIndices
+from scrapp.scrapp_cotacoes_intra import ScrappIntra
 
 from zoneinfo import ZoneInfo
 from datetime import datetime
@@ -36,13 +36,7 @@ class ScrapperRun():
             """
             self.logger.info(title)
 
-            tables = TableChecker(
-                logger=self.logger,
-                db=self.db,
-                conn=self.conn,
-                cursor=self.cursor)
-
-            tables.check_tables()
+            self.table_checker.check_tables()
 
             title = r"""
             #########################################
@@ -65,11 +59,11 @@ class ScrapperRun():
                 conn=self.conn,
                 cursor=self.cursor,
                 ls_empresas=self.ls_empresas,
-                table_checker=tables)
+                table_checker=self.table_checker)
 
             # scrap.busca_noticias_historicas()
 
-            # scrap.buscar_noticias()
+            scrap.buscar_noticias()
 
             hora_fim = datetime.now(tz=tz_brasil)
             self.logger.info(
@@ -87,20 +81,26 @@ class ScrapperRun():
             """
             self.logger.info(title)
 
-            scrap = ScrappIndices(
+            scrap_f = ScrappIndices(
                 logger=self.logger,
                 db=self.db,
                 conn=self.conn,
                 cursor=self.cursor,
                 ls_empresas=self.ls_empresas,
-                table_checker=tables)
+                table_checker=self.table_checker)
+
+            scrap_intra = ScrappIntra(
+                logger=self.logger,
+                db=self.db,
+                conn=self.conn,
+                cursor=self.cursor,
+                ls_empresas=self.ls_empresas,
+                table_checker=self.table_checker)
 
             try:
-                scrap.harvest()
+                scrap_f.colheira_diaria()
 
-                # scrap.busca_valores_fechamento()
-
-                # scrap.busca_cotacao_atual()
+                scrap_intra.colheita_cotacao_atual()
 
             except Exception as e:
                 hora_atual = datetime.now().time()

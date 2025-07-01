@@ -1,22 +1,15 @@
-# Scrapping: 7:00 da manhã nos dias úteis
-0 7 * * 1-5 /usr/local/bin/run_scrapping.sh >> /var/log/scrapping.log 2>&1
+# NEWS - A cada 30 minutos
+*/30 * * * * docker run --rm --network=host harvester python run_process_coletas.py --news >> /var/log/news.log 2>&1
 
-# tentativa 2 as 7
-30 7 * * 1-5 /usr/local/bin/run_scrapping.sh >> /var/log/scrapping.log 2>&1
+# INDICES - 07:00, 07:30, 08:00, dias úteis
+0 7 * * 1-5 docker run --rm --network=host harvester python run_process_coletas.py --indices >> /var/log/indices.log 2>&1
+30 7 * * 1-5 docker run --rm --network=host harvester python run_process_coletas.py --indices >> /var/log/indices.log 2>&1
+0 8 * * 1-5 docker run --rm --network=host harvester python run_process_coletas.py --indices >> /var/log/indices.log 2>&1
 
-# tentativa 2 as 7
-0 8 * * 1-5 /usr/local/bin/run_scrapping.sh >> /var/log/scrapping.log --fim-do-dia
+# COTAÇÕES - das 10h às 18h, dias úteis, a cada 2 minutos
+*/2 10-18 * * 1-5 docker run --rm --network=host harvester python run_process_coletas.py --cotacoes >> /var/log/cotacoes.log 2>&1
 
-# Macro dados: tentativa 1 às 21:30
-30 21 * * 1-5 /usr/local/bin/run_macro.sh >> /var/log/macro.log 2>&1
-
-# tentativa 2 às 22:00
-0 22 * * 1-5 /usr/local/bin/run_macro.sh >> /var/log/macro.log 2>&1
-
-# tentativa 3 às 22:30
-30 22 * * 1-5 /usr/local/bin/run_macro.sh >> /var/log/macro.log --fim-do-dia 
-
-# Cotações pregão = horário bolsa dias 1-5
-# fechamentos = fim, dos dias 1-5
-# noticias sempre, intervalo a definir
-# definir cálculos de silver para gold
+# FECHAMENTOS - 21:00, 21:30, 22:00, dias úteis
+0 21 * * 1-5 docker run --rm --network=host harvester python run_process_coletas.py --fechamentos >> /var/log/fechamentos.log 2>&1
+30 21 * * 1-5 docker run --rm --network=host harvester python run_process_coletas.py --fechamentos >> /var/log/fechamentos.log 2>&1
+0 22 * * 1-5 docker run --rm --network=host harvester python run_process_coletas.py --fechamentos >> /var/log/fechamentos.log 2>&1

@@ -77,7 +77,8 @@ class ScrappingNoticias():
 
     def _converter_para_nativo(df):
         """
-        Converte colunas numéricas do DataFrame para tipos nativos do Python (float).
+        Converte colunas numéricas do DataFrame
+        para tipos nativos do Python (float).
         """
         numeric_cols = df.select_dtypes(include=[np.number]).columns
         for coluna in numeric_cols:
@@ -95,7 +96,7 @@ class ScrappingNoticias():
 
         except Exception as e:
             self.logger.error(
-                f"Houve um problema ao testar a similaridades de títulos de notícias: {e}")
+                f"Problema ao testar a similaridades de notícias: {e}")
             raise
 
     def _verificar_similaridade(self, noticia1, noticia2):
@@ -109,14 +110,15 @@ class ScrappingNoticias():
 
         except Exception as e:
             self.logger.error(
-                f"Houve um problema ao testar a similaridades do texto das notícias: {e}")
+                f"Problema ao testar similaridades do texto das notícias: {e}")
             raise
 
     def _verificar_relevancia(self, texto, empresa, limite=0.005):
         try:
             if isinstance(texto, str):
                 total_palavras = len(texto.split())
-                freq_relativa = texto.lower().count(empresa.lower()) / max(total_palavras, 1)
+                freq_relativa = (texto.lower().count(empresa.lower())
+                                 / max(total_palavras, 1))
 
                 return freq_relativa < limite
 
@@ -129,15 +131,25 @@ class ScrappingNoticias():
 
         for noticia in noticias_salvas:
             if texto == "texto_indisponivel":
-                if self._titulos_sao_similares(titulo, noticia["titulo"]) or self._verificar_relevancia(titulo, empresa):
+                if (
+                    self._titulos_sao_similares(titulo, noticia["titulo"])
+                    or self._verificar_relevancia(titulo, empresa)
+                ):
                     self.logger.info(
-                        "Notícia duplicada ou não relevante encontrada. Ignorando...")
-                    return False
+                        "Notícia duplicada ou não relevante encontrada:"
+                        "Ignorando...")
+                return False
             else:
-                if isinstance(noticia["titulo"], str) and isinstance(noticia["texto"], str):
-                    if self._titulos_sao_similares(titulo, noticia["titulo"]) or self._verificar_similaridade(texto, noticia["texto"]) > 0.70 or self._verificar_relevancia(texto, empresa):
+                if (isinstance(noticia["titulo"], str)
+                        and isinstance(noticia["texto"], str)):
+                    if (self._titulos_sao_similares(titulo, noticia["titulo"])
+                        or self._verificar_similaridade(
+                        texto,
+                        noticia["texto"]) > 0.70
+                            or self._verificar_relevancia(texto, empresa)):
                         self.logger.info(
-                            "Notícia duplicada ou não relevante encontrada. Ignorando...")
+                            "Notícia duplicada ou não"
+                            " relevante encontrada. Ignorando...")
                         return False
                 else:
                     self.logger.info(
@@ -153,13 +165,13 @@ class ScrappingNoticias():
             self.logger.error(f"Erro: URL inválida recebida {url}")
             return ""
 
-        html = None
-
         texto_noticia = ""
 
         try:
             headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+                "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0"
+                "Safari/537.36"
             }
             response = requests.get(url, headers=headers)
 
@@ -179,8 +191,8 @@ class ScrappingNoticias():
             print(f"Erro ao obter o texto da notícia: {e}")
 
         #    options = webdriver.ChromeOptions()
-        #    options.add_argument("--headless")  # Executa sem interface gráfica
-        #    options.add_argument("--disable-gpu")  # Bloqueia uso da GPU
+        #    options.add_argument("--headless")
+        #    options.add_argument("--disable-gpu")
             # Evita fallback problemático
         #    options.add_argument("--disable-software-rasterizer")
             # Remove possíveis conflitos de extensões
@@ -190,22 +202,22 @@ class ScrappingNoticias():
         #    options.add_argument("--disable-popup-blocking")
         #    options.add_argument("--ignore-certificate-errors")
         #    options.add_argument(
-         #       "--disable-blink-features=AutomationControlled")
+        #       "--disable-blink-features=AutomationControlled")
 
-         #   driver = webdriver.Chrome(options=options)
+        #   driver = webdriver.Chrome(options=options)
         #    driver.get(url)
         #    try:
         #        WebDriverWait(driver, 3).until(
         #            # Confirme o nome correto da classe
         #            EC.presence_of_element_located(
-       #                 (By.CLASS_NAME, "article-content"))
-       #         )
+        #                 (By.CLASS_NAME, "article-content"))
+        #         )
             # Pega HTML após renderização
         #        html = driver.execute_script(
         #            "return document.documentElement.outerHTML")
         #    except Exception as e:
         #        self.logger.error(
-         #           f"Erro ao esperar carregamento via Selenium: {e}")
+        #           f"Erro ao esperar carregamento via Selenium: {e}")
         # html = None
         #    driver.quit()
 
@@ -214,34 +226,39 @@ class ScrappingNoticias():
         #            "Erro crítico: HTML vazio. Nenhum conteúdo extraído.")
         #        return " "
 
-         # soup = BeautifulSoup(html, "html.parser")
-          #  container = soup.find("div", class_="article-content")
-          #  if not container:
+        # soup = BeautifulSoup(html, "html.parser")
+        #  container = soup.find("div", class_="article-content")
+        #  if not container:
             # Testa variação de nome do elemento
-         #       container = soup.find("div", class_="post-content")
+        #       container = soup.find("div", class_="post-content")
 
-         #   article_body = container.find_all("p") if container else []#3
+        #   article_body = container.find_all("p") if container else []#3
 
         #    texto_noticia = " "  # Inicializa com um valor seguro
 
         #    if article_body:
         #        texto_noticia = " ".join(
-        #            [p.get_text() for p in article_body]) if article_body else " "
+        #            [p.get_text() for p in article_body])
+        # if article_body else " "
 
-         #   texto_noticia = texto_noticia.strip() if texto_noticia else " "
+        #   texto_noticia = texto_noticia.strip() if texto_noticia else " "
 
         # Limpeza do texto extraído
         if texto_noticia:
             # Remove espaços extras
             texto_noticia = re.sub(r"\s+", " ", texto_noticia)
             texto_noticia = re.sub(
-                r"\b(Publicado em|Fonte|Leia mais em|Promoção|Todos os Direitos Reservados)\b.*", "", texto_noticia)
+                r"\b(Publicado em|Fonte|Leia mais em|Promoção|Todos os"
+                r"Direitos Reservados)\b.*",
+                "",
+                texto_noticia)
             # Remove caracteres especiais
             texto_noticia = re.sub(r"[^a-zA-Z0-9À-ÿ\s]", "", texto_noticia)
 
         if not texto_noticia.strip():
             self.logger.error(
-                "Texto está vazio ou contém apenas stop words. Ignorando processamento.")
+                ("Texto está vazio ou contém apenas stop words."
+                 "Ignorando processamento."))
             return "texto_indisponivel"
 
         return texto_noticia
@@ -254,7 +271,10 @@ class ScrappingNoticias():
         try:
 
             for sigla, nome in self.ls_empresas:
-                if not self.table_checker.check_populated(camada='silver', tabela='noticias', empresa=sigla, resposta='bool'):
+                if not self.table_checker.check_populated(camada='silver',
+                                                          tabela='noticias',
+                                                          empresa=sigla,
+                                                          resposta='bool'):
 
                     self.logger.info(
                         f"Buscando notícias inicias para: '{nome}:{sigla}'")
@@ -262,14 +282,17 @@ class ScrappingNoticias():
                     data_inicial = datetime.today().replace(day=1)
                     data_final = data_inicial.replace(
                         year=data_inicial.year - 10)
+
                     while data_inicial >= data_final:
                         start_date = data_inicial.strftime("%Y-%m-%d")
                         from calendar import monthrange
                         end_date = data_inicial.replace(day=monthrange(
-                            data_inicial.year, data_inicial.month)[1]).strftime("%Y-%m-%d")
+                            data_inicial.year, data_inicial.month)[1]). \
+                            strftime("%Y-%m-%d")
 
                         self.logger.info(
-                            f"Buscando notícias de {start_date} até {end_date}")
+                            (f"Buscando notícias de"
+                             f" {start_date} até {end_date}"))
 
                         filtros = Filters(
                             keyword=nome,
@@ -293,9 +316,17 @@ class ScrappingNoticias():
                                 artigo.url)
 
                             if artigo.title:
-                                if texto_noticia.strip() and texto_noticia != "texto_indisponivel":
-                                    if isinstance(artigo.title, str) and isinstance(texto_noticia, str) and texto_noticia != "":
-                                        if self._verificar_noticia(artigo.title, texto_noticia, noticias_salvas, nome):
+                                if (texto_noticia.strip()
+                                        and texto_noticia
+                                        != "texto_indisponivel"):
+                                    if (isinstance(artigo.title, str)
+                                        and isinstance(texto_noticia, str)
+                                            and texto_noticia != ""):
+                                        if self._verificar_noticia(
+                                                artigo.title,
+                                                texto_noticia,
+                                                noticias_salvas,
+                                                nome):
                                             self.logger.info(
                                                 f"Título: {artigo.title}")
                                             noticia = {
@@ -303,21 +334,44 @@ class ScrappingNoticias():
                                                 "texto": texto_noticia
                                             }
 
-                                            query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
-                                            valores = (sigla, artigo.title, texto_noticia, datetime.strptime(
-                                                artigo.seendate, '%Y%m%dT%H%M%SZ').date(), artigo.url)
+                                            query = ("""INSERT INTO
+                                                     silver.noticias
+                                                     (cod_bolsa,
+                                                     titulo,
+                                                     descricao,
+                                                     data_historico,
+                                                     url)
+                                                     VALUES
+                                                     (%s, %s, %s, %s, %s)""")
+                                            valores = (sigla,
+                                                       artigo.title,
+                                                       texto_noticia,
+                                                       datetime.strptime(
+                                                           artigo.seendate,
+                                                           '%Y%m%dT%H%M%SZ')
+                                                       .date(),
+                                                       artigo.url)
 
                                             try:
                                                 self.db.executa_query(
-                                                    query, valores, commit=True)
+                                                    query,
+                                                    valores,
+                                                    commit=True)
                                             except Exception as e:
                                                 self.logger.error(
-                                                    f"Erro ao inserir notícia: {artigo.title}. Detalhes: {e}")
+                                                    (f"Erro ao inserir"
+                                                     f" notícia:"
+                                                     f" {artigo.title}."
+                                                     f" Detalhes: {e}"))
                                             finally:
                                                 noticias_salvas.append(noticia)
                                 else:
                                     if isinstance(artigo.title, str):
-                                        if self._verificar_noticia(artigo.title, texto_noticia, noticias_salvas, nome):
+                                        if self._verificar_noticia(
+                                                artigo.title,
+                                                texto_noticia,
+                                                noticias_salvas,
+                                                nome):
                                             self.logger.info(
                                                 f"Título: {artigo.title}")
                                             noticia = {
@@ -325,25 +379,47 @@ class ScrappingNoticias():
                                                 "texto": texto_noticia
                                             }
 
-                                            query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
-                                            valores = (sigla, artigo.title, texto_noticia, datetime.strptime(
-                                                artigo.seendate, '%Y%m%dT%H%M%SZ').date(), artigo.url)
+                                            query = "INSERT INTO " \
+                                                "silver.noticias (cod_bolsa," \
+                                                "titulo, " \
+                                                "descricao, " \
+                                                "data_historico, " \
+                                                "url) " \
+                                                "VALUES (%s, %s, %s, %s, %s)"
+
+                                            valores = (sigla,
+                                                       artigo.title,
+                                                       texto_noticia,
+                                                       datetime.strptime(
+                                                           artigo.seendate,
+                                                           '%Y%m%dT%H%M%SZ').
+                                                       date(), artigo.url)
 
                                             try:
                                                 self.db.executa_query(
-                                                    query, valores, commit=True)
+                                                    query,
+                                                    valores,
+                                                    commit=True)
                                             except Exception as e:
                                                 self.logger.error(
-                                                    f"Erro ao inserir notícia: {artigo.title}. Detalhes: {e}")
+                                                    (f"Erro ao inserir"
+                                                     f" notícia: "
+                                                     f"{artigo.title}. "
+                                                     f"Detalhes: {e}"))
                                             finally:
                                                 noticias_salvas.append(noticia)
 
                         mes_anterior = (data_inicial.month - 1) or 12
-                        ano_atualizado = data_inicial.year if data_inicial.month > 1 else data_inicial.year - 1
+                        ano_atualizado = (data_inicial.year
+                                          if data_inicial.month
+                                          > 1 else
+                                          data_inicial.year - 1)
                         data_inicial = data_inicial.replace(
                             year=ano_atualizado, month=mes_anterior)
 
-                    query = "Select cod_bolsa FROM silver.noticias WHERE cod_bolsa = %s"
+                    query = "Select cod_bolsa " \
+                        "FROM silver.noticias " \
+                        "WHERE cod_bolsa = %s"
                     valores = sigla
 
                     resultado = self.db.fetch_data(
@@ -352,18 +428,20 @@ class ScrappingNoticias():
                     if resultado is not None:
 
                         hoje = date.today()
-                        self.table_checker.register_populated(self,
-                                                              camada='meta',
-                                                              tabela='controle_populacao',
-                                                              empresa=sigla,
-                                                              status=True,
-                                                              data_populated=hoje,
-                                                              observation='Carga Inicial')
+                        self.table_checker.register_populated(
+                            self,
+                            camada='meta',
+                            tabela='controle_populacao',
+                            empresa=sigla,
+                            status=True,
+                            data_populated=hoje,
+                            observation='Carga Inicial')
 
                     self.logger.info(
-                        f"Notícias históricas cadastradas para '{nome}:{sigla}'...")
+                        (f"Notícias históricas"
+                         f" cadastradas para '{nome}:{sigla}'..."))
                 else:
-                    self.logger.info(f"Notícias históricas já presentes.")
+                    self.logger.info("Notícias históricas já presentes.")
 
         except Exception as e:
             self.logger.error(
@@ -371,7 +449,7 @@ class ScrappingNoticias():
             raise
 
         self.logger.info(
-            f"Consulta de notícias históricas finalizada com sucesso.")
+            "Consulta de notícias históricas finalizada com sucesso.")
 
 # **Buscar notícias recentes e verificar duplicatas**
 
@@ -382,10 +460,12 @@ class ScrappingNoticias():
             for tik in self.ls_empresas:
 
                 self.logger.info(
-                    f"Buscando notícias recentes para a empresa '{tik['tabela']}'")
+                    (f"Buscando notícias recentes"
+                     f" para a empresa '{tik['tabela']}'"))
 
                 API_NEWS = "47f7a2378b0a4a6c9096689cf1956945"
-                url = f"https://newsapi.org/v2/everything?q={tik['tabela']}&language=pt&apiKey={API_NEWS}"
+                url = (f"https://newsapi.org/v2/everything?"
+                       f"q={tik['tabela']}&language=pt&apiKey={API_NEWS}")
 
                 response = requests.get(url)
                 data = response.json()
@@ -401,23 +481,36 @@ class ScrappingNoticias():
                         data_pub, '%Y-%m-%dT%H:%M:%SZ').date()
 
                     # Verificar se a notícia já está no banco
-                    query = "SELECT COUNT(*) FROM silver.noticias WHERE titulo = %s AND cod_bolsa = %s"
+                    query = """SELECT COUNT(*)
+                    FROM silver.noticias
+                    WHERE titulo = %s AND cod_bolsa = %s"""
                     valores = (titulo, tik['ticker'])
                     news = self.db.fetch_data(query, valores, tipo_fetch="one")
 
                     if news and news[0] == 0:
-                        # verifica se a notícia não é reperida dentro desse lote recebido.
+                        # verifica se a notícia não é reperida
+                        # dentro desse lote recebido.
 
                         if len(noticias_salvas) > 0:
 
-                            if self._verificar_noticia(titulo, conteudo, noticias_salvas, tik['tabela']):
+                            if self._verificar_noticia(
+                                    titulo,
+                                    conteudo,
+                                    noticias_salvas,
+                                    tik['tabela']):
 
                                 noticia = {
                                     "titulo": titulo,
                                     "texto": conteudo
                                 }
 
-                                query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                                query = "INSERT INTO silver.noticias" \
+                                    "(cod_bolsa," \
+                                    "titulo," \
+                                    "descricao," \
+                                    "data_historico," \
+                                    "url)" \
+                                    "VALUES (%s, %s, %s, %s, %s)"
                                 valores = (tik['ticker'], titulo,
                                            conteudo, data_pub, url)
 
@@ -435,7 +528,10 @@ class ScrappingNoticias():
                                 "texto": conteudo
                             }
 
-                            query = "INSERT INTO silver.noticias (cod_bolsa, titulo, descricao, data_historico, url) VALUES (%s, %s, %s, %s, %s)"
+                            query = "INSERT INTO silver.noticias" \
+                                "(cod_bolsa, titulo, descricao," \
+                                "data_historico, url)" \
+                                "VALUES (%s, %s, %s, %s, %s)"
                             valores = (tik['ticker'], titulo,
                                        conteudo, data_pub, url)
 
@@ -447,8 +543,10 @@ class ScrappingNoticias():
                             noticias_salvas.append(noticia)
 
                 self.logger.info(
-                    f"Novas notícias verificas com sucesso para '{tik['tabela']}'.")
+                    (f"Novas notícias verificas"
+                     f" com sucesso para '{tik['tabela']}'."))
 
         except Exception as e:
             self.logger.error(
-                f"Houve um problema ao adquirir novas notícias para {tik['tabela']}, erro: {e}")
+                (f"Houve um problema ao adquirir novas"
+                 f" notícias para {tik['tabela']}, erro: {e}"))

@@ -39,8 +39,38 @@ class ScrappIntra():
                      {"ticker": "EURBRL=X", "tabela": "euro"},
                      {"ticker": "AUDUSD=X", "tabela": "australian dolar"}]
 
+        ls_indices_globais = [
+            {"ticker": "RUT", "tabela": "russell"},
+            {"ticker": "URTH", "tabela": "msci"},
+            {"ticker": "^N225", "tabela": "japao"},
+            {"ticker": "^BVSP", "tabela": "ibovespa"},
+            {"ticker": "BOVA11.SA", "tabela": "al_bovespa"},
+            {"ticker": "SPY", "tabela": "sp500"},
+            {"ticker": "QQQ", "tabela": "etf_nadaq_100"},
+            {"ticker": "VGT", "tabela": "vanguard_tech"},
+            {"ticker": "ARKK", "tabela": "ark_innovation"}
+        ]
+
+        ls_commodities = [
+            {"ticker": "BZ=F", "tabela": "PetroleoBrent"},
+            {"ticker": "GC=F", "tabela": "Ouro"},
+            {"ticker": "SI=F", "tabela": "Prata"},
+            {"ticker": "ZS=F", "tabela": "Soja"},
+        ]
+
+        ls_cripto = [
+            {"ticker": "BTC-USD", "tabela": "Bitcoin"},
+            {"ticker": "ETH-USD", "tabela": "Ethereum"},
+        ]
+
+        ls_titulos = [
+            {"ticker": "^TNX", "tabela": "Treasury10Y"},
+            {"ticker": "^IRX", "tabela": "Treasury2Y"},
+        ]
+
         # cotação das empresas e moedas importantes
-        ls_combined = self.ls_empresas + ls_moedas
+        ls_combined = self.ls_empresas + ls_moedas + \
+            ls_indices_globais + ls_commodities + ls_cripto + ls_titulos
 
         for tik in ls_combined:
 
@@ -48,12 +78,15 @@ class ScrappIntra():
                 f"Verificando cotação B2 para {tik['tabela'].upper()}...")
 
             atualizar = self.table_checker.last_pop(
-                camada='meta', tabela='controle_populacao', nome_serie=tik["tabela"])
+                camada='meta',
+                tabela='controle_populacao',
+                nome_serie=tik["tabela"])
 
             if atualizar is None:
 
                 self.logger.info(
-                    f"Sem dados para {tik['tabela'].upper()}, buscando primeira carga...")
+                    f"""Sem dados para {tik['tabela'].upper()},
+                    Buscando primeira carga...""")
 
                 self._cotacao_pregao(
                     hoje=False,
@@ -75,7 +108,8 @@ class ScrappIntra():
                 else:
 
                     self.logger.info(
-                        f"Dados do {tik['tabela'].upper()}, estão atualizados.")
+                        f"""Dados do {tik['tabela'].upper()}:
+                        Estão atualizados.""")
 
     def _cotacao_pregao(self, hoje, sigla, camada, tabela):
 
@@ -96,17 +130,16 @@ class ScrappIntra():
             br_time = datetime.now(ZoneInfo("America/Sao_Paulo"))
             hoje_data = br_time.date()
 
-            sucesso = False
-
             if hoje:
-                hoje_str = hoje_data.strftime("%Y-%m-%d")
                 data_inicial = None
-                pop_string = f"Atualização do valor de fechamento IBOVESPA"
+                pop_string = "Atualização do valor de fechamento IBOVESPA"
 
-                df_ibov = ibov.history(
-                    start=hoje_str, end=hoje_str, interval="1d")
+                df_ibov = ibov.history(period="1d")
 
-                if not df_ibov.empty and df_ibov.index[-1].date() == br_time.date() and not df_ibov is None:
+                df_ibov.index = pd.to_datetime(df_ibov.index)
+                df_ibov.reset_index(inplace=True)
+
+                if not df_ibov.empty:
                     linha = df_ibov.iloc[-1]
                     query = """INSERT INTO silver.cotacao_pregao (
                                                 datatime,
@@ -121,7 +154,7 @@ class ScrappIntra():
                                                 origem)
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)"""
                     valores = [(
-                        linha['Datetime'],
+                        br_time,
                         tabela,
                         self._to_float(float(linha["Open"])),
                         self._to_float(float(linha["Low"])),
@@ -134,29 +167,40 @@ class ScrappIntra():
                         'yfinance'
                     )]
 
-                    self.db.executa_query(query, valores, commit=True)
-
-                    sucesso = True
+                    self.db.executa_query(query, valores[0], commit=True)
 
                     try:
-                        query = f"""WITH subquery AS (
+                        query = """WITH subquery AS (
                                         SELECT datatime,
-                                            AVG(preco_fechamento) OVER (ORDER BY datatime ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
-                                            AVG(preco_fechamento) OVER (ORDER BY datatime ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
+                                            AVG(preco_fechamento) OVER
+                                            (ORDER BY datatime ROWS BETWEEN
+                                            49 PRECEDING AND CURRENT ROW)
+                                            AS media_50,
+                                            AVG(preco_fechamento) OVER
+                                            (ORDER BY datatime ROWS BETWEEN
+                                            199 PRECEDING AND CURRENT ROW)
+                                            AS media_200
                                         FROM silver.cotacao_pregao
-                                        WHERE media_movel_50 IS NULL OR media_movel_200 IS NULL
+                                        WHERE media_movel_50 IS NULL OR
+                                        media_movel_200 IS NULL
                                     )
                                     UPDATE silver.cotacao_pregao AS p
-                                    SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
-                                        media_movel_200 = COALESCE(subquery.media_200, p.media_movel_200)
+                                    SET media_movel_50 =
+                                    COALESCE(subquery.media_50,
+                                    p.media_movel_50),
+                                        media_movel_200 =
+                                        COALESCE(subquery.media_200,
+                                        p.media_movel_200)
                                     FROM subquery
-                                    WHERE p.datatime = subquery.datatime AND ativo = %s;"""
+                                    WHERE p.datatime = subquery.datatime
+                                    AND ativo = %s;"""
 
                         self.db.executa_query(
                             query, valores=[sigla], commit=True)
                     except Exception as e:
                         self.logger.error(
-                            f"Não foi possível calcular as médias móveis para: {tabela}, erro: {e}")
+                            (f"Não foi possível calcular as médias"
+                             f" móveis para: {tabela}, erro: {e}"))
 
             else:
                 data_inicial = hoje_data
@@ -167,9 +211,17 @@ class ScrappIntra():
                 Dia_inicio_2m = hoje_data - relativedelta(days=57)
 
                 df_pregao_1h = ibov.history(
-                    start=Dia_inicio_1h, end=Dia_fim_1h, interval='60m', auto_adjust=True, prepost=False)
+                    start=Dia_inicio_1h,
+                    end=Dia_fim_1h,
+                    interval='60m',
+                    auto_adjust=True,
+                    prepost=False)
                 df_pregao_2m = ibov.history(
-                    start=Dia_inicio_2m, end=hoje_data, interval='2m', auto_adjust=True, prepost=False)
+                    start=Dia_inicio_2m,
+                    end=hoje_data,
+                    interval='2m',
+                    auto_adjust=True,
+                    prepost=False)
                 df_pregao_1h.index = pd.to_datetime(df_pregao_1h.index)
                 df_pregao_1h.reset_index(inplace=True)
                 df_pregao_2m.index = pd.to_datetime(df_pregao_2m.index)
@@ -178,7 +230,7 @@ class ScrappIntra():
                 df_final = pd.concat(
                     [df_pregao_2m, df_pregao_1h], ignore_index=True)
 
-                if not df_final is None and not df_final.empty:
+                if df_final is not None and not df_final.empty:
                     query = """INSERT INTO silver.cotacao_pregao (
                                                     datatime,
                                                     ativo,
@@ -208,67 +260,48 @@ class ScrappIntra():
                     self.db.executa_query(
                         query, valores, commit=True, many=True)
 
-                    sucesso = True
-
                     try:
-                        query = f"""UPDATE silver.cotacao_pregao AS p
-                                        SET media_movel_50 = COALESCE(subquery.media_50, p.media_movel_50),
+                        query = """UPDATE silver.cotacao_pregao AS p
+                                        SET media_movel_50 =
+                                 COALESCE(subquery.media_50, p.media_movel_50),
                                             media_movel_200 = COALESCE(
-                                                subquery.media_200, p.media_movel_200)
+                                                subquery.media_200,
+                                 p.media_movel_200)
                                         FROM (
                                             SELECT datatime,
-                                                AVG(preco_fechamento) OVER (ORDER BY datatime ROWS BETWEEN 49 PRECEDING AND CURRENT ROW) AS media_50,
-                                                AVG(preco_fechamento) OVER (ORDER BY datatime ROWS BETWEEN 199 PRECEDING AND CURRENT ROW) AS media_200
+                                                AVG(preco_fechamento)
+                                 OVER (ORDER BY datatime ROWS BETWEEN 49
+                                 PRECEDING AND CURRENT ROW) AS media_50,
+                                                AVG(preco_fechamento)
+                                 OVER (ORDER BY datatime ROWS BETWEEN 199
+                                 PRECEDING AND CURRENT ROW) AS media_200
                                         FROM silver.cotacao_pregao
                                         ) AS subquery
-                                        WHERE p.datatime = subquery.datatime AND ativo = %s;"""
+                                        WHERE p.datatime = subquery.datatime
+                                 AND ativo = %s;"""
 
                         self.db.executa_query(
                             query, valores=[sigla], commit=True)
 
                     except Exception as e:
                         self.logger.error(
-                            f"Não foi possível calcular as médias móveis para: {tabela}, erro: {e}")
+                            (f"Não foi possível calcular as médias"
+                             f" móveis para: {tabela}, erro: {e}"))
 
                     self.logger.info(
                         f"Valores para {tabela} obtido com sucesso.")
 
-            if sucesso:
-
-                proxima = hoje_data + timedelta(days=1)
-
-                self.table_checker.register_populated(
-                    camada='silver',
-                    tabela='cotacao_pregao_'+tabela,
-                    nome_serie=tabela,
-                    inicial=data_inicial,
-                    data_exec=hoje_data,
-                    prox_data=proxima,
-                    obs=pop_string
-                )
-
-            else:
-
-                if hoje:
-
-                    self.logger.warning(
-                        f"{tabela} não retornou dados do fechamento atual — agendada para retry.")
-
-                    self.table_checker.register_populated(
-                        camada='silver',
-                        tabela='cotacao_pregao_'+tabela,
-                        nome_serie=tabela,
-                        inicial=data_inicial,
-                        data_exec=hoje_data,
-                        prox_data=hoje_data,
-                        obs="Dado não retornado — agendado para retry."
-                    )
-
-                else:
-
-                    self.logger.warning(
-                        f"Não foi possível obter a carga inicial para {tabela}— agendada para retry.")
+            self.table_checker.register_populated(
+                camada='silver',
+                tabela='cotacao_pregao_'+tabela,
+                nome_serie=tabela,
+                inicial=data_inicial,
+                data_exec=hoje_data,
+                prox_data=hoje_data,
+                obs=pop_string
+            )
 
         except Exception as e:
             self.logger.error(
-                f"Não foi possível obter os dados intradiários para {tabela}, erro: {e}")
+                (f"Não foi possível obter os dados"
+                 f" intradiários para {tabela}, erro: {e}"))

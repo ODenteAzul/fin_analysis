@@ -1,6 +1,5 @@
 import psycopg2
 import psycopg2.extras
-import pandas as pd
 
 
 class PostGreSQL():
@@ -78,7 +77,8 @@ class PostGreSQL():
 
     def fetch_data(self, query, valores=None, tipo_fetch=None, n_linhas=0):
         """
-        Executes a SELECT query using the current cursor and fetches the result.
+        Executes a SELECT query using the current cursor and 
+        fetches the result.
 
         Parameters
         ----------
@@ -126,7 +126,8 @@ class PostGreSQL():
 
             if not dados:
                 self.logger.info(
-                    "Consulta executada com sucesso, mas nenhum dado foi retornado.")
+                    "Consulta executada com sucesso:"
+                    "Mas nenhum dado foi retornado.")
 
             return dados
 

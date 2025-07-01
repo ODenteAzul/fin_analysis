@@ -13,13 +13,15 @@ class ScrapperRun():
                  conn,
                  cursor,
                  table_checker,
-                 ls_empresas):
+                 ls_empresas,
+                 controle):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
         self.table_checker = table_checker
         self.ls_empresas = ls_empresas
+        self.controle = controle
 
     def executa_scrapping(self):
 
@@ -38,83 +40,96 @@ class ScrapperRun():
 
             self.table_checker.check_tables()
 
-            title = r"""
-            #########################################
-            #        )                              #
-            #     ( /(        )           (         #
-            #     )\())    ( /((     (     )        #
-            #    ((_)\  (  )\())\  ( )\ ( /( (      #
-            #    _((_) )\(_))((_) )((_))(_)))\      #
-            #    | \| |((_) |_ (_)((_|_|(_)_((_)    #
-            #    | .` / _ \  _|| / _|| / _` (_-<    #
-            #    |_|\_\___/\__||_\__||_\__,_/__/    #
-            #                                       #
-            #########################################
-            """
-            self.logger.info(title)
+            if self.controle == 'news':
+                title = r"""
+                #########################################
+                #        )                              #
+                #     ( /(        )           (         #
+                #     )\())    ( /((     (     )        #
+                #    ((_)\  (  )\())\  ( )\ ( /( (      #
+                #    _((_) )\(_))((_) )((_))(_)))\      #
+                #    | \| |((_) |_ (_)((_|_|(_)_((_)    #
+                #    | .` / _ \  _|| / _|| / _` (_-<    #
+                #    |_|\_\___/\__||_\__||_\__,_/__/    #
+                #                                       #
+                #########################################
+                """
+                self.logger.info(title)
 
-            scrap = ScrappingNoticias(
-                logger=self.logger,
-                db=self.db,
-                conn=self.conn,
-                cursor=self.cursor,
-                ls_empresas=self.ls_empresas,
-                table_checker=self.table_checker)
+                scrap = ScrappingNoticias(
+                    logger=self.logger,
+                    db=self.db,
+                    conn=self.conn,
+                    cursor=self.cursor,
+                    ls_empresas=self.ls_empresas,
+                    table_checker=self.table_checker)
 
-            # scrap.busca_noticias_historicas()
+                # scrap.busca_noticias_historicas()
 
-            scrap.buscar_noticias()
+                scrap.buscar_noticias()
 
-            hora_fim = datetime.now(tz=tz_brasil)
-            self.logger.info(
-                f"Busca de notícias terminada com sucesso em : {hora_fim-hora_inicio}")
+                hora_fim = datetime.now(tz=tz_brasil)
+                self.logger.info(
+                    f"""Busca de notícias terminada com sucesso em :
+                    {hora_fim-hora_inicio}""")
 
-            hora_inicio = datetime.now(tz=tz_brasil)
+            elif self.controle == 'indices' or self.controle == 'fechamentos':
 
-            title = r"""
-            ######################################
-            #     __                             #
-            #    |_  _  _ __  _ __  o  _  _  _   #
-            #    |__(_ (_)| |(_)||| | (_ (_)_>   #
-            #                                    # 
-            ######################################
-            """
-            self.logger.info(title)
+                hora_inicio = datetime.now(tz=tz_brasil)
 
-            scrap_f = ScrappIndices(
-                logger=self.logger,
-                db=self.db,
-                conn=self.conn,
-                cursor=self.cursor,
-                ls_empresas=self.ls_empresas,
-                table_checker=self.table_checker)
+                title = r"""
+                ######################################
+                #     __                             #
+                #    |_  _  _ __  _ __  o  _  _  _   #
+                #    |__(_ (_)| |(_)||| | (_ (_)_>   #
+                #                                    #
+                ######################################
+                """
+                self.logger.info(title)
 
-            scrap_intra = ScrappIntra(
-                logger=self.logger,
-                db=self.db,
-                conn=self.conn,
-                cursor=self.cursor,
-                ls_empresas=self.ls_empresas,
-                table_checker=self.table_checker)
+                scrap_f = ScrappIndices(
+                    logger=self.logger,
+                    db=self.db,
+                    conn=self.conn,
+                    cursor=self.cursor,
+                    ls_empresas=self.ls_empresas,
+                    table_checker=self.table_checker,
+                    controle=self.controle)
 
-            try:
                 scrap_f.colheira_diaria()
+
+                hora_fim = datetime.now(tz=tz_brasil)
+                self.logger.info(
+                    f"""Busca de dados economicos diários:
+                     Terminada com sucesso em : {hora_fim-hora_inicio}""")
+
+            elif self.controle == 'cotacoes':
+
+                title = r"""
+                ######################################
+                #     __                             #
+                #    |_  _  _ __  _ __  o  _  _  _   #
+                #    |__(_ (_)| |(_)||| | (_ (_)_>   #
+                #                                    #
+                ######################################
+                """
+                self.logger.info(title)
+
+                scrap_intra = ScrappIntra(
+                    logger=self.logger,
+                    db=self.db,
+                    conn=self.conn,
+                    cursor=self.cursor,
+                    ls_empresas=self.ls_empresas,
+                    table_checker=self.table_checker)
 
                 scrap_intra.colheita_cotacao_atual()
 
-            except Exception as e:
-                hora_atual = datetime.now().time()
-                self.logger.error(
-                    f"Houve um problema ao adquirir os dados via scrapping: {e}")
-                with open("scraping_errors.log", "a") as f:
-                    f.write(f"{hora_atual} - Erro: {e}\n")
-
-            hora_fim = datetime.now(tz=tz_brasil)
-            self.logger.info(
-                f"Busca de dados economicos terminada com sucesso em : {hora_fim-hora_inicio}")
+                hora_fim = datetime.now(tz=tz_brasil)
+                self.logger.info(
+                    f"""Busca de dados de cotação:
+                    Terminada com sucesso em : {hora_fim-hora_inicio}""")
 
         except Exception as e:
             self.logger.error(
                 f"Houve um problema ao adquirir os dados via scrapping: {e}")
-            with open("scraping_errors.log", "a") as f:
-                f.write(f"{hora_atual} - Erro: {e}\n")

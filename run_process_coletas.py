@@ -82,11 +82,11 @@ if __name__ == "__main__":
     parser.add_argument("--fechamentos", action="store_true")
     args = parser.parse_args()
 
-    if args.news:
-        run_processes("news")
-    elif args.indices:
-        run_processes("indices")
-    elif args.cotacoes:
-        run_processes("cotacoes")
-    elif args.fechamentos:
-        run_processes("fechamentos")
+    # if args.news:
+    run_processes("news")
+    # elif args.indices:
+    #    run_processes("indices")
+    # elif args.cotacoes:
+    #    run_processes("cotacoes")
+    # elif args.fechamentos:
+    #    run_processes("fechamentos")

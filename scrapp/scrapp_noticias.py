@@ -464,8 +464,8 @@ class ScrappingNoticias():
                      f" para a empresa '{tik['tabela']}'"))
 
                 API_NEWS = "47f7a2378b0a4a6c9096689cf1956945"
-                url = (f"https://newsapi.org/v2/everything?"
-                       f"q={tik['tabela']}&language=pt&apiKey={API_NEWS}")
+                url = (
+                    f"https://newsapi.org/v2/everything?q={tik['tabela']}&language=pt&apiKey={API_NEWS}")
 
                 response = requests.get(url)
                 data = response.json()

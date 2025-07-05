@@ -728,13 +728,21 @@ class ScrappIndices():
             if hoje:
                 http_get_timeout = 10
                 pop_string = f"Atualização diária {nome_serie}"
-                only_date = hoje_data.strftime("%d/%m/%Y")
+                if frequencia == 'diaria':
+                    start_date = hoje_data - relativedelta(days=5)
+                elif frequencia == 'semanal':
+                    start_date = hoje_data - relativedelta(weeks=3)
+                elif frequencia == 'mensal':
+                    start_date = hoje_data - relativedelta(months=3)
+
+                final_date = hoje_data.strftime("%d/%m/%Y")
+                start_date = start_date.strftime("%d/%m/%Y")
                 data_inicial = None
 
                 url = (f"https://api.bcb.gov.br/dados/serie/"
                        f"bcdata.sgs.{codigo_sgs}/dados?"
-                       f"formato=json&dataInicial={only_date}"
-                       f"&dataFinal={only_date}")
+                       f"formato=json&dataInicial={start_date}"
+                       f"&dataFinal={final_date}")
 
                 self.logger.info(
                     f"Iniciando coleta da {nome_serie} atual")
@@ -742,7 +750,7 @@ class ScrappIndices():
                 http_get_timeout = 150
                 pop_string = f"Carga inicial {nome_serie}"
                 start_date = hoje_data - relativedelta(years=10)
-                final_date = hoje_data .strftime("%d/%m/%Y")
+                final_date = hoje_data.strftime("%d/%m/%Y")
                 start_date = start_date.strftime("%d/%m/%Y")
                 data_inicial = hoje_data
 
@@ -763,43 +771,96 @@ class ScrappIndices():
                 is_list=True,
                 convert_timestamp=False,
                 sanitize=True,
-                frequency='daily',
-                http_get_timeout=http_get_timeout)
+                frequency='auto',
+                http_get_timeout=http_get_timeout,
+                date_format="%d/%m/%Y")
 
             if df_indice is not None and not df_indice.empty:
-                nome_tabela = f"{camada}.{tabela}"
-                query = (f"INSERT INTO {nome_tabela}"
-                         f" (data, valor) VALUES (%s, %s);")
-                valores = [
-                    (row["data"].date(), self._to_float(row["valor"]))
-                    for _, row in df_indice.iterrows()
-                    if self._to_float(row["valor"]) is not None
-                ]
 
-                self.db.executa_query(query, valores, commit=True, many=True)
+                if hoje:
+                    resultado = self.db.fetch_data(
+                        query=f'SELECT MAX(data) FROM {camada}.{tabela};',
+                        tipo_fetch='one')
 
-                self.logger.info(
-                    f"{nome_serie} histórico obtido e gravado com sucesso.")
+                    data_last = resultado['max'] if resultado and resultado['max'] else None
 
-                proxima = self._calcula_proxima_execucao(hoje_data, frequencia)
+                    if isinstance(data_last, datetime):
+                        data_last = data_last.date()
 
-                self.table_checker.register_populated(
-                    camada=camada,
-                    tabela=tabela,
-                    nome_serie=tabela,
-                    inicial=data_inicial,
-                    data_exec=hoje_data,
-                    prox_data=proxima,
-                    obs=pop_string
-                )
+                    maior_data = df_indice['data'].max()
+
+                    maior_data = maior_data.date()
+
+                    if maior_data > data_last:
+
+                        nome_tabela = f"{camada}.{tabela}"
+                        query = (f"INSERT INTO {nome_tabela}"
+                                 f" (data, valor) VALUES (%s, %s);")
+                        valores = [
+                            (row["data"], self._to_float(row["valor"]))
+                            for _, row in df_indice.iterrows()
+                            if self._to_float(row["valor"]) is not None
+                        ]
+
+                        self.db.executa_query(
+                            query, valores, commit=True, many=True)
+
+                        self.logger.info(
+                            f"{nome_serie} histórico obtido e gravado com sucesso.")
+
+                        proxima = self._calcula_proxima_execucao(
+                            hoje_data, frequencia)
+
+                        self.table_checker.register_populated(
+                            camada=camada,
+                            tabela=tabela,
+                            nome_serie=tabela,
+                            inicial=data_inicial,
+                            data_exec=hoje_data,
+                            prox_data=proxima,
+                            obs=pop_string
+                        )
+                    else:
+                        self.logger.warning(
+                            f"{nome_serie}: Nenhum novo dado identificado. \
+                            Último no banco: {data_last}, \
+                            último da API: {maior_data} — agendado para retry.")
+
+                else:
+                    nome_tabela = f"{camada}.{tabela}"
+                    query = (f"INSERT INTO {nome_tabela}"
+                             f" (data, valor) VALUES (%s, %s);")
+                    valores = [
+                        (row["data"], self._to_float(row["valor"]))
+                        for _, row in df_indice.iterrows()
+                        if self._to_float(row["valor"]) is not None
+                    ]
+
+                    self.db.executa_query(
+                        query, valores, commit=True, many=True)
+
+                    self.logger.info(
+                        f"{nome_serie} histórico obtido e gravado com sucesso.")
+
+                    proxima = self._calcula_proxima_execucao(
+                        hoje_data, frequencia)
+
+                    self.table_checker.register_populated(
+                        camada=camada,
+                        tabela=tabela,
+                        nome_serie=tabela,
+                        inicial=data_inicial,
+                        data_exec=hoje_data,
+                        prox_data=proxima,
+                        obs=pop_string
+                    )
 
             else:
 
                 if hoje:
 
                     self.logger.warning(
-                        f"""{nome_serie} sem dados atuais:
-                        agendada para retry.""")
+                        f"""{nome_serie} Não retornou dados... """)
 
                     self.table_checker.register_populated(
                         camada=camada,

@@ -1,0 +1,38 @@
+[
+    {
+        "ticker": "RUT",
+        "tabela": "russell"
+    },
+    {
+        "ticker": "URTH",
+        "tabela": "msci"
+    },
+    {
+        "ticker": "^N225",
+        "tabela": "japao"
+    },
+    {
+        "ticker": "^BVSP",
+        "tabela": "ibovespa"
+    },
+    {
+        "ticker": "BOVA11.SA",
+        "tabela": "al_bovespa"
+    },
+    {
+        "ticker": "SPY",
+        "tabela": "sp500"
+    },
+    {
+        "ticker": "QQQ",
+        "tabela": "etf_nadaq_100"
+    },
+    {
+        "ticker": "VGT",
+        "tabela": "vanguard_tech"
+    },
+    {
+        "ticker": "ARKK",
+        "tabela": "ark_innovation"
+    }
+]

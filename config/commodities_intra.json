@@ -1,0 +1,18 @@
+[
+    {
+        "ticker": "BZ=F",
+        "tabela": "PetroleoBrent"
+    },
+    {
+        "ticker": "GC=F",
+        "tabela": "Ouro"
+    },
+    {
+        "ticker": "SI=F",
+        "tabela": "Prata"
+    },
+    {
+        "ticker": "ZS=F",
+        "tabela": "Soja"
+    }
+]

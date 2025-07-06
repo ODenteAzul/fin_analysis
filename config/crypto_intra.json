@@ -1,0 +1,10 @@
+[
+    {
+        "ticker": "BTC-USD",
+        "tabela": "Bitcoin"
+    },
+    {
+        "ticker": "ETH-USD",
+        "tabela": "Ethereum"
+    }
+]

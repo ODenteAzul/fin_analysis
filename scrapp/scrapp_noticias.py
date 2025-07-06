@@ -8,6 +8,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from datetime import datetime
 from bs4 import BeautifulSoup
+from config.ambience import EnvConfig
 
 
 class ScrappingNoticias():
@@ -463,7 +464,7 @@ class ScrappingNoticias():
                     (f"Buscando notícias recentes"
                      f" para a empresa '{tik['tabela']}'"))
 
-                API_NEWS = "47f7a2378b0a4a6c9096689cf1956945"
+                API_NEWS = EnvConfig.NEWS_API_KEY
                 url = (
                     f"https://newsapi.org/v2/everything?q={tik['tabela']}&language=pt&apiKey={API_NEWS}")
 

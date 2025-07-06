@@ -1,0 +1,22 @@
+[
+    {
+        "par": "USD-BRL",
+        "tabela": "cambio_diario_dolar"
+    },
+    {
+        "par": "EUR-BRL",
+        "tabela": "cambio_diario_euro"
+    },
+    {
+        "par": "GBP-BRL",
+        "tabela": "cambio_diario_libra"
+    },
+    {
+        "par": "ARS-BRL",
+        "tabela": "cambio_diario_peso"
+    },
+    {
+        "par": "CNY-BRL",
+        "tabela": "cambio_diario_yuan"
+    }
+]

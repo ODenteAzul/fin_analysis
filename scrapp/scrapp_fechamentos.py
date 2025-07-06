@@ -4,6 +4,8 @@ from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta
 import pandas as pd
 import jbridgedf as jdf
+from config.ambience import EnvConfig
+from config.json_loader import carregar_lista_json
 
 
 class ScrappIndices():
@@ -12,14 +14,12 @@ class ScrappIndices():
                  db,
                  conn,
                  cursor,
-                 ls_empresas,
                  table_checker,
                  controle):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
-        self.ls_empresas = ls_empresas
         self.table_checker = table_checker
         self.controle = controle
 
@@ -83,19 +83,9 @@ class ScrappIndices():
 
                 # busca os índices que normalmente são divulgados pela manhã
 
-                indicadores = [
-                    {"codigo": 11, 'tabela': "selic", 'frequencia': "diaria"},
-                    {"codigo": 433, 'tabela': "ipca", 'frequencia': "mensal"},
-                    {"codigo": 12, 'tabela': "cdi", 'frequencia': "diaria"},
-                    {"codigo": 189, 'tabela': "igpm", 'frequencia': "mensal"}
-                ]
+                indicadores = carregar_lista_json("config/indicadores.json")
 
-                juros_eua = [
-                    {'serie': "EFFR", 'tabela': "juros_usa_effr",
-                     'frequencia': "diaria"},
-                    {'serie': "FEDFUNDS", 'tabela': "juros_usa_fedfunds",
-                        'frequencia': "mensal"}
-                ]
+                juros_eua = carregar_lista_json("config/juros_eua.json")
 
                 for ind in indicadores:
 
@@ -206,13 +196,7 @@ class ScrappIndices():
                         self.logger.info(
                             "Dados para IBOVESPA, estão atualizados.")
 
-                pares_moeda = [
-                    {"par": "USD-BRL", 'tabela': "cambio_diario_dolar"},
-                    {"par": "EUR-BRL", 'tabela': "cambio_diario_euro"},
-                    {"par": "GBP-BRL", 'tabela': "cambio_diario_libra"},
-                    {"par": "ARS-BRL", 'tabela': "cambio_diario_peso"},
-                    {"par": "CNY-BRL", 'tabela': "cambio_diario_yuan"}
-                ]
+                pares_moeda = carregar_lista_json("config/moedas.json")
 
                 for par in pares_moeda:
 
@@ -538,6 +522,8 @@ class ScrappIndices():
             raise TypeError(
                 "O parâmetro 'tabela' deve ser informado.")
 
+        TOKEN = EnvConfig.AWESOME_API_KEY
+
         try:
             br_time = datetime.now(ZoneInfo("America/Sao_Paulo"))
             hoje_data = br_time.date()
@@ -547,8 +533,7 @@ class ScrappIndices():
                 pop_string = f"Atualizando os dados diários de {par_moeda}."
                 data_inicial = None
                 url = (f"https://economia.awesomeapi.com.br/json/"
-                       f"last/{par_moeda}?token=9c91ad4e0c552bcc5"
-                       f"498d2ceb84f3ba60c60bdddd56fce886511979fa28b0b12")
+                       f"last/{par_moeda}?token={TOKEN}")
                 self.logger.info(
                     f"Iniciando coleta do fechamento do {par_moeda}...")
             else:
@@ -563,8 +548,7 @@ class ScrappIndices():
                 start_date = start_date.strftime("%Y%m%d")
                 url = (f"https://economia.awesomeapi.com.br/json/"
                        f"daily/{par_moeda}/{dias_passados}?token="
-                       f"9c91ad4e0c552bcc5498d2ceb84f3ba60c60bdddd"
-                       f"56fce886511979fa28b0b12&start_date={start_date}"
+                       f"{TOKEN}&start_date={start_date}"
                        f"&end_date={final_date}")
                 self.logger.info(
                     f"Iniciando coleta:{par_moeda} dos últimos 10 anos...")
@@ -905,6 +889,8 @@ class ScrappIndices():
             raise TypeError(
                 "O parâmetro 'frequencia' deve ser informado.")
 
+        TOKEN = EnvConfig.FRED_API_KEY
+
         try:
 
             br_time = datetime.now(ZoneInfo("America/Sao_Paulo"))
@@ -918,7 +904,7 @@ class ScrappIndices():
 
                 url = (f"https://api.stlouisfed.org/fred/"
                        f"series_observations?series_id={serie}"
-                       f"&api_key=f308c54585d765845e4c89ca7a010c3a"
+                       f"&api_key={TOKEN}"
                        f"&file_type=json&observation_start={only_date}"
                        f"&observation_end={only_date}")
             else:
@@ -932,7 +918,7 @@ class ScrappIndices():
 
                 url = (f"https://api.stlouisfed.org/fred/"
                        f"series_observations?series_id={serie}"
-                       f"&api_key=f308c54585d765845e4c89ca7a010c3a"
+                       f"&api_key={TOKEN}"
                        f"&file_type=json&observation_start={start_date}"
                        f"&observation_end={final_date}")
 

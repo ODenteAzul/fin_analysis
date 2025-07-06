@@ -1,0 +1,12 @@
+[
+    {
+        "serie": "EFFR",
+        "tabela": "juros_usa_effr",
+        "frequencia": "diaria"
+    },
+    {
+        "serie": "FEDFUNDS",
+        "tabela": "juros_usa_fedfunds",
+        "frequencia": "mensal"
+    }
+]

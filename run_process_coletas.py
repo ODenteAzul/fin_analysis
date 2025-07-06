@@ -41,16 +41,6 @@ def run_processes(controle=None):
                                      conn,
                                      cursor)
 
-        # empresas que serão analisadas
-        ls_empresas = [{"ticker": "EMBR3.SA", "tabela": "Embraer"},
-                       {"ticker": "WEGE3.SA", "tabela": "WEG"},
-                       {"ticker": "KLBN4.SA", "tabela": "Klabin"},
-                       {"ticker": "PETR4.SA", "tabela": "Petrobras"},
-                       {"ticker": "ABEV3.SA", "tabela": "Ambev"},
-                       {"ticker": "ITUB4.SA", "tabela": "Itaú Unibanco"},
-                       {"ticker": "BPAC11.SA", "tabela": "BTG Pactual"},
-                       {"ticker": "KEPL3.SA", "tabela": "Kepler Weber"}]
-
         log.info(f"Iniciando o processamento: '{hora_inicio_geral}'")
         log.info("Scrapping de informações...")
 
@@ -59,7 +49,6 @@ def run_processes(controle=None):
                                 conn,
                                 cursor,
                                 table_checker,
-                                ls_empresas,
                                 controle)
 
         go_scrapp.executa_scrapping()

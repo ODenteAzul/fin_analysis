@@ -1,0 +1,22 @@
+[
+    {
+        "codigo": 11,
+        "tabela": "selic",
+        "frequencia": "diaria"
+    },
+    {
+        "codigo": 433,
+        "tabela": "ipca",
+        "frequencia": "mensal"
+    },
+    {
+        "codigo": 12,
+        "tabela": "cdi",
+        "frequencia": "diaria"
+    },
+    {
+        "codigo": 189,
+        "tabela": "igpm",
+        "frequencia": "mensal"
+    }
+]

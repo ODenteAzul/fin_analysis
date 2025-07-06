@@ -13,14 +13,12 @@ class ScrapperRun():
                  conn,
                  cursor,
                  table_checker,
-                 ls_empresas,
                  controle):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
         self.table_checker = table_checker
-        self.ls_empresas = ls_empresas
         self.controle = controle
 
     def executa_scrapping(self):
@@ -61,7 +59,6 @@ class ScrapperRun():
                     db=self.db,
                     conn=self.conn,
                     cursor=self.cursor,
-                    ls_empresas=self.ls_empresas,
                     table_checker=self.table_checker)
 
                 # scrap.busca_noticias_historicas()
@@ -92,7 +89,6 @@ class ScrapperRun():
                     db=self.db,
                     conn=self.conn,
                     cursor=self.cursor,
-                    ls_empresas=self.ls_empresas,
                     table_checker=self.table_checker,
                     controle=self.controle)
 
@@ -120,7 +116,6 @@ class ScrapperRun():
                     db=self.db,
                     conn=self.conn,
                     cursor=self.cursor,
-                    ls_empresas=self.ls_empresas,
                     table_checker=self.table_checker)
 
                 scrap_intra.colheita_cotacao_atual()

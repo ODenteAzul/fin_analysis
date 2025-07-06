@@ -1,0 +1,18 @@
+[
+    {
+        "ticker": "USDBRL=X",
+        "tabela": "dolar"
+    },
+    {
+        "ticker": "CADBRL=X",
+        "tabela": "canadian dolar"
+    },
+    {
+        "ticker": "EURBRL=X",
+        "tabela": "euro"
+    },
+    {
+        "ticker": "AUDUSD=X",
+        "tabela": "australian dolar"
+    }
+]

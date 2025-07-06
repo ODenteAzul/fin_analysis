@@ -1,8 +1,9 @@
 import yfinance as yf
-from datetime import time, datetime, timedelta
+from datetime import time, datetime
 from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta
 import pandas as pd
+from config.json_loader import carregar_lista_json
 
 
 class ScrappIntra():
@@ -11,13 +12,11 @@ class ScrappIntra():
                  db,
                  conn,
                  cursor,
-                 ls_empresas,
                  table_checker):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
-        self.ls_empresas = ls_empresas
         self.table_checker = table_checker
 
     def _to_float(self, valor):
@@ -34,42 +33,21 @@ class ScrappIntra():
 
     def colheita_cotacao_atual(self):
 
-        ls_moedas = [{"ticker": "USDBRL=X", "tabela": "dolar"},
-                     {"ticker": "CADBRL=X", "tabela": "canadian dolar"},
-                     {"ticker": "EURBRL=X", "tabela": "euro"},
-                     {"ticker": "AUDUSD=X", "tabela": "australian dolar"}]
+        ls_empresas = carregar_lista_json("config/empresas.json")
 
-        ls_indices_globais = [
-            {"ticker": "RUT", "tabela": "russell"},
-            {"ticker": "URTH", "tabela": "msci"},
-            {"ticker": "^N225", "tabela": "japao"},
-            {"ticker": "^BVSP", "tabela": "ibovespa"},
-            {"ticker": "BOVA11.SA", "tabela": "al_bovespa"},
-            {"ticker": "SPY", "tabela": "sp500"},
-            {"ticker": "QQQ", "tabela": "etf_nadaq_100"},
-            {"ticker": "VGT", "tabela": "vanguard_tech"},
-            {"ticker": "ARKK", "tabela": "ark_innovation"}
-        ]
+        ls_moedas = carregar_lista_json("config/moedas_intra.json")
 
-        ls_commodities = [
-            {"ticker": "BZ=F", "tabela": "PetroleoBrent"},
-            {"ticker": "GC=F", "tabela": "Ouro"},
-            {"ticker": "SI=F", "tabela": "Prata"},
-            {"ticker": "ZS=F", "tabela": "Soja"},
-        ]
+        ls_indices_globais = carregar_lista_json(
+            "config/indices_globais_intra.json")
 
-        ls_cripto = [
-            {"ticker": "BTC-USD", "tabela": "Bitcoin"},
-            {"ticker": "ETH-USD", "tabela": "Ethereum"},
-        ]
+        ls_commodities = carregar_lista_json("config/commodities_intra.json")
 
-        ls_titulos = [
-            {"ticker": "^TNX", "tabela": "Treasury10Y"},
-            {"ticker": "^IRX", "tabela": "Treasury2Y"},
-        ]
+        ls_cripto = carregar_lista_json("config/crypto_intra.json")
+
+        ls_titulos = carregar_lista_json("config/titles_intra.json")
 
         # cotação das empresas e moedas importantes
-        ls_combined = self.ls_empresas + ls_moedas + \
+        ls_combined = ls_empresas + ls_moedas + \
             ls_indices_globais + ls_commodities + ls_cripto + ls_titulos
 
         for tik in ls_combined:

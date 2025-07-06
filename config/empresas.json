@@ -1,0 +1,34 @@
+[
+    {
+        "ticker": "EMBR3.SA",
+        "tabela": "Embraer"
+    },
+    {
+        "ticker": "WEGE3.SA",
+        "tabela": "WEG"
+    },
+    {
+        "ticker": "KLBN4.SA",
+        "tabela": "Klabin"
+    },
+    {
+        "ticker": "PETR4.SA",
+        "tabela": "Petrobras"
+    },
+    {
+        "ticker": "ABEV3.SA",
+        "tabela": "Ambev"
+    },
+    {
+        "ticker": "ITUB4.SA",
+        "tabela": "Itaú Unibanco"
+    },
+    {
+        "ticker": "BPAC11.SA",
+        "tabela": "BTG Pactual"
+    },
+    {
+        "ticker": "KEPL3.SA",
+        "tabela": "Kepler Weber"
+    }
+]

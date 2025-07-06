@@ -7,8 +7,8 @@ class PostGreSQL():
                  dbname="scrappingdb",
                  user="sirefelps",
                  password="Luisabc@123",
-                 # host="192.168.0.212",
-                 host="localhost",
+                 host="192.168.0.212",
+                 # host="localhost",
                  port="5432",
                  logger=None):
         self.dbname = dbname

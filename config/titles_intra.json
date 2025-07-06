@@ -1,0 +1,10 @@
+[
+    {
+        "ticker": "^TNX",
+        "tabela": "Treasury10Y"
+    },
+    {
+        "ticker": "^IRX",
+        "tabela": "Treasury2Y"
+    }
+]

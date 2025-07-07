@@ -1,0 +1,65 @@
+{
+    "EMBR3.SA": [
+        "Embraer",
+        "fabricante de aeronaves",
+        "empresa aeroespacial",
+        "indústria aeronáutica",
+        "gigante da aviação",
+        "companhia brasileira de aviões"
+    ],
+    "WEGE3.SA": [
+        "WEG",
+        "multinacional catarinense",
+        "fabricante de motores elétricos",
+        "empresa de automação industrial",
+        "indústria de equipamentos elétricos",
+        "gigante da engenharia elétrica"
+    ],
+    "KLBN4.SA": [
+        "Klabin",
+        "produtora de papel e celulose",
+        "indústria florestal",
+        "companhia de embalagens",
+        "empresa de base florestal"
+    ],
+    "PETR4.SA": [
+        "Petrobras",
+        "estatal do petróleo",
+        "petroleira brasileira",
+        "gigante do setor energético",
+        "empresa de óleo e gás",
+        "companhia de combustíveis fósseis"
+    ],
+    "ABEV3.SA": [
+        "Ambev",
+        "fabricante de bebidas",
+        "gigante das cervejas",
+        "indústria de refrigerantes",
+        "multinacional do setor de bebidas",
+        "empresa de consumo"
+    ],
+    "ITUB4.SA": [
+        "Itaú Unibanco",
+        "banco privado",
+        "instituição financeira",
+        "gigante bancário",
+        "conglomerado financeiro",
+        "grupo Itaú"
+    ],
+    "BPAC11.SA": [
+        "BTG Pactual",
+        "banco de investimentos",
+        "gestora de ativos",
+        "instituição financeira",
+        "grupo financeiro",
+        "BTG"
+    ],
+    "KEPL3.SA": [
+        "Kepler Weber",
+        "fabricante de silos",
+        "empresa de armazenagem agrícola",
+        "indústria de grãos",
+        "companhia de infraestrutura rural",
+        "especialista em logística agrícola"
+    ]
+}

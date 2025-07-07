@@ -3,7 +3,6 @@ from textblob import TextBlob
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from transformers import pipeline
 
-
 sentiment_analysis = pipeline(
     "sentiment-analysis", model="yiyanghkust/finbert-tone")
 

@@ -17,64 +17,12 @@ class ScrappingNoticias():
                  db,
                  conn,
                  cursor,
-                 table_checker,
-                 ls_empresas):
+                 table_checker):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
         self.table_checker = table_checker
-        self.ls_empresas = ls_empresas
-
-    def verifica_tabelas(self):
-
-        self.logger.info(
-            "Verificando a presença das tabelas de scrapping...")
-
-        query = """
-            CREATE TABLE IF NOT EXISTS preco_acoes_diario (
-                id SERIAL PRIMARY KEY,
-                cod_bolsa VARCHAR(10) NOT NULL,
-                data_historico DATE NOT NULL,
-                preco_abertura NUMERIC(10,2),
-                preco_minimo NUMERIC(10,2),
-                preco_maximo NUMERIC(10,2),
-                preco_fechamento NUMERIC(10,2),
-                volume_negociado BIGINT,
-                media_movel_50 NUMERIC(10,2),
-                media_movel_200 NUMERIC(10,2),
-                UNIQUE (cod_bolsa, data_historico)
-            );
-        """
-
-        self.db.executa_query(query, commit=True)
-
-        query = """
-            CREATE TABLE IF NOT EXISTS precos_embraer_pregao (
-                id SERIAL PRIMARY KEY,
-                cod_bolsa TEXT,
-                data_historico TIMESTAMP NOT NULL,
-                preco_acao DECIMAL(10,2),
-                ibovespa DECIMAL(10,2));
-        """
-
-        self.db.executa_query(query, commit=True)
-
-        query = """
-            CREATE TABLE IF NOT EXISTS dolar_diario (
-                id SERIAL PRIMARY KEY,
-                data_historico TIMESTAMP NOT NULL,
-                bid DECIMAL(10,4),
-                ask DECIMAL(10,4),
-                high DECIMAL(10,4),
-                low DECIMAL(10,4),
-                varBid DECIMAL(10,4),
-                pctChange DECIMAL(10,4));
-        """
-
-        self.db.executa_query(query, commit=True)
-
-        self.logger.info("Tabelas verificadas.")
 
     def _converter_para_nativo(df):
         """
@@ -88,16 +36,17 @@ class ScrappingNoticias():
 
         return df
 
-    def _titulos_sao_similares(self, titulo1, titulo2, limite=60):
+    def _titulos_sao_similares(self, titulo1, titulo2, limite=80):
         try:
             if isinstance(titulo1, str) and isinstance(titulo2, str):
-                return fuzz.ratio(titulo1.lower(), titulo2.lower()) > limite
+                return fuzz.token_set_ratio(titulo1.lower(),
+                                            titulo2.lower()) > limite
 
             return False
 
         except Exception as e:
             self.logger.error(
-                f"Problema ao testar a similaridades de notícias: {e}")
+                f"Problema ao testar a similaridades dos títulos: {e}")
             raise
 
     def _verificar_similaridade(self, noticia1, noticia2):

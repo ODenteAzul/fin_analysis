@@ -29,7 +29,10 @@ def _titulos_sao_similares(self, titulo1, titulo2, limite=80):
         raise
 
 
-def _verificar_relevancia_semantica(noticia_nova, noticia_base):
+def _verificar_relevancia_semantica(
+        noticia_nova,
+        noticia_base
+):
 
     nlp = spacy.load("pt_core_news_md")
 
@@ -43,7 +46,26 @@ def _verificar_relevancia_semantica(noticia_nova, noticia_base):
         raise
 
 
-def _verificar_relevancia(noticia_nova, palavras_chave, limite=0.005):
+def _verificar_relevancia_titulo(
+        titulo,
+        palavras_chave,
+        limite=80
+):
+    try:
+        titulo = _limpar_texto(titulo)
+        return any(term.lower() in titulo for term in palavras_chave)
+
+    except Exception as e:
+        print(
+            f"Problema ao testar a relevância dos títulos: {e}")
+        raise
+
+
+def _verificar_relevancia_termos(
+        noticia_nova,
+        palavras_chave,
+        limite=0.01
+):
     try:
         if isinstance(noticia_nova, str):
             texto_splitado = noticia_nova.lower().split()
@@ -67,51 +89,38 @@ print(termos_empresa)
 print(texto_base)
 
 
-def _noticia_e_relevante(noticia_nova, titulo, termos_empresa, noticia_base):
+def _noticia_e_relevante(
+        titulo,
+        noticia_nova,
+        termos_empresa,
+        noticia_base
+):
 
     noticia_nova_limpa = _limpar_texto(noticia_nova)
 
     noticia_base_limpa = _limpar_texto(noticia_base)
 
-    relevante_por_termos = _verificar_relevancia(
+    relevante_por_termos = _verificar_relevancia_termos(
         noticia_nova=noticia_nova_limpa, palavras_chave=termos_empresa)
 
     relevancia_semantica = _verificar_relevancia_semantica(
         noticia_nova_limpa, noticia_base_limpa)
 
-    titulo_relevante = _titulos_sao_similares()
+    titulo_relevante = _verificar_relevancia_titulo(
+        titulo=titulo, palavras_chave=termos_empresa)
 
+    print(titulo_relevante)
     print(relevante_por_termos)
     print(relevancia_semantica)
 
-    if not relevante_por_termos and relevancia_semantica > 0.85:
+    if (titulo_relevante and relevante_por_termos) and relevancia_semantica > 0.60:
         return True
-    elif relevante_por_termos and relevancia_semantica > 0.60:
+    elif (titulo_relevante or relevante_por_termos) and relevancia_semantica > 0.85:
+        return True
+    elif not (titulo_relevante or relevante_por_termos) and relevancia_semantica > 0.90:
         return True
     else:
         return False
-
-
-noticia1 = """A Embraer está inciando estudos para o lançamento de um novo carro voador. 
-                    Pois é, nem só de aviões vive a gigante da aviação, que busca se antecipar 
-                    ao futuro já entrando em um mercado que tem atraido grandes empresas, mas 
-                    em que nenhuma ainda obteve tanto sucesso. Para tornar sua tentativa mais 
-                    certeira, a Embraer busca parcerias de peso, mundo afora, como outras gigantes 
-                     da aviação, para conseguir decolar nesse universo ainda incerto. Mas de boba 
-                     a Embraer não tem nada, e alocou um time de engenheiros de ponta para esse 
-                     novo desafio.
-                    """
-
-noticia2 = """A fabricante brasileira Embraer reforça sua presença no mercado internacional com exportações de jatos comerciais e aeronaves para defesa, consolidando sua liderança em inovação no setor aeroespacial."""
-
-notiica3 = """Uma grande gincana aberta, de rua mesmo, como aquelas de antigamente, está acontecendo em São Bernardo do Campo. Ela é promovida pela Embraer, com apoio de diversas outras empresas locais. A ideia é criar um ponto de encontro para todos na cidade. A gigante da aviação está até mesmo distribuindo presentes para as crianças que particiarem das brincadeiras, uma oportunidade para deixaram o celular de lado por um momento."""
-
-resultado = _noticia_e_relevante(
-    noticia_nova=notiica3,
-    termos_empresa=termos_empresa,
-    noticia_base=texto_base)
-
-print(resultado)
 
 
 noticias_teste = [
@@ -139,18 +148,33 @@ noticias_teste = [
         "titulo": "Embraer anuncia novo centro de pesquisa em aviação sustentável",
         "corpo": "A empresa brasileira lançou um novo centro de P&D voltado para tecnologias de aviação verde, com foco em biocombustíveis e eficiência energética.",
         "esperado": True
+    },
+    {
+        "titulo": "Nem tudo são flores para a Embraer, gigante apresenta resultado abaixo do esperado",
+        "corpo": "O primeiro trimestre foi abaixo das projeções para a Embraer, deixando os analistas com um pé atrás. A indústria aeronáutica como um todo apresentou retração em maio e junho e isso prejudicou os resultados. Porém a Embraer afirma ter planos para retomar o crescimento.",
+        "esperado": True
+    },
+    {
+        "titulo": "O setor aeroespacial está em declínio.",
+        "corpo": "Esse é um ano difícil para as empresas de aviação. Gigantes do setor como a Airbus e a Boing estão amargando prejuízos e atrasos nas entregas. Também não ajuda a alta de preços em diversos países e a inflação. Algumas fabricantes como a nossa Embraer ainda se mantém firmes, pois atuam no nicho regional, que se mantém aquecido.",
+        "esperado": False
     }
 ]
 
 
-def testar_matriz(noticias, termos, base_ref, limite_semantico_com_termos=0.60, limite_semantico_sem_termos=0.90):
+def testar_matriz(
+        noticias,
+        termos,
+        base_ref,
+):
     for i, noticia in enumerate(noticias):
         print(f"\n🔎 Notícia {i+1}: {noticia['titulo']}")
 
+        titulo = noticia['titulo']
         corpo = noticia['corpo']
         esperado = noticia['esperado']
 
-        resultado = _noticia_e_relevante(corpo, termos, base_ref)
+        resultado = _noticia_e_relevante(titulo, corpo, termos, base_ref)
 
         print(esperado)
         print(resultado)

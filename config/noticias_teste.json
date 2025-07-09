@@ -1,0 +1,37 @@
+[
+    {
+        "titulo": "Embraer fecha contrato bilionário com Força Aérea dos EUA",
+        "corpo": "A Embraer assinou um contrato com o governo americano para fornecer aeronaves militares. O acordo fortalece a presença da fabricante brasileira no mercado internacional.",
+        "esperado": true
+    },
+    {
+        "titulo": "Gincana infantil promovida pela Embraer reúne moradores em São Bernardo",
+        "corpo": "A gigante da aviação distribuiu presentes para as crianças, incentivando a interação entre vizinhos em evento comunitário.",
+        "esperado": false
+    },
+    {
+        "titulo": "Mercado analisa ações da Embraer após divulgação de novos resultados trimestrais",
+        "corpo": "Com resultados acima do esperado, a ação da Embraer fechou em alta nesta terça-feira, refletindo a confiança dos investidores.",
+        "esperado": true
+    },
+    {
+        "titulo": "São José dos Campos recebe feira de inovação tecnológica",
+        "corpo": "A feira contou com startups locais e algumas grandes empresas da região, como Embraer e Ericsson. O evento atraiu milhares de visitantes.",
+        "esperado": false
+    },
+    {
+        "titulo": "Embraer anuncia novo centro de pesquisa em aviação sustentável",
+        "corpo": "A empresa brasileira lançou um novo centro de P&D voltado para tecnologias de aviação verde, com foco em biocombustíveis e eficiência energética.",
+        "esperado": true
+    },
+    {
+        "titulo": "Nem tudo são flores para a Embraer, gigante apresenta resultado abaixo do esperado",
+        "corpo": "O primeiro trimestre foi abaixo das projeções para a Embraer, deixando os analistas com um pé atrás. A indústria aeronáutica como um todo apresentou retração em maio e junho e isso prejudicou os resultados. Porém a Embraer afirma ter planos para retomar o crescimento.",
+        "esperado": true
+    },
+    {
+        "titulo": "O setor aeroespacial está em declínio.",
+        "corpo": "Esse é um ano difícil para as empresas de aviação. Gigantes do setor como a Airbus e a Boing estão amargando prejuízos e atrasos nas entregas. Também não ajuda a alta de preços em diversos países e a inflação. Algumas fabricantes como a nossa Embraer ainda se mantém firmes, pois atuam no nicho regional, que se mantém aquecido.",
+        "esperado": false
+    }
+]

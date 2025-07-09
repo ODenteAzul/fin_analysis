@@ -50,23 +50,28 @@ class ScrappingNoticias():
             raise
 
     def _verificar_similaridade(self, noticia1, noticia2):
-        try:
-            vetorizer = TfidfVectorizer()
-            vetorizer = TfidfVectorizer(stop_words=None)
-            matriz = vetorizer.fit_transform([noticia1, noticia2])
-            similaridade = cosine_similarity(matriz[0], matriz[1])
 
-            return similaridade[0][0]
+        if len(noticia1.split()) < 20 or len(noticia2.split()) < 20:
+            return False
 
-        except Exception as e:
-            self.logger.error(
-                f"Problema ao testar similaridades do texto das notícias: {e}")
-            raise
+        else:
+            try:
+                vetorizer = TfidfVectorizer()
+                vetorizer = TfidfVectorizer(stop_words=None)
+                matriz = vetorizer.fit_transform([noticia1, noticia2])
+                similaridade = cosine_similarity(matriz[0], matriz[1])
+
+                return similaridade[0][0]
+
+            except Exception as e:
+                self.logger.error(
+                    f"Problema ao testar similaridades do texto das notícias: {e}")
+                raise
 
     def _verificar_relevancia(self, texto, empresa, limite=0.005):
         try:
             if isinstance(texto, str):
-                total_palavras = len(texto.split())
+                total_palavras = len(texto.lower().split())
                 freq_relativa = (texto.lower().count(empresa.lower())
                                  / max(total_palavras, 1))
 

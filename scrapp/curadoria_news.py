@@ -1,0 +1,166 @@
+import spacy
+import unicodedata
+import re
+from fuzzywuzzy import fuzz
+from config.json_loader import carregar_lista_json
+
+
+class Curadoria():
+    def __init__(self,
+                 logger,
+                 db,
+                 conn,
+                 cursor,
+                 table_checker):
+        self.logger = logger
+        self.db = db
+        self.conn = conn
+        self.cursor = cursor
+        self.table_checker = table_checker
+
+    sin_dict = carregar_lista_json("config/sinonimos_empresas.json")
+    base_news = carregar_lista_json("config/textos_base.json")
+
+    def _limpar_texto(
+        texto=""
+    ) -> str:
+        if texto == "":
+            raise ValueError("Nenhum texto enviado para limpeza...")
+
+        texto = unicodedata.normalize('NFKD', texto).encode(
+            'ASCII', 'ignore').decode('ASCII')
+        texto = re.sub(r'[^\w\s]', '', texto)
+
+        return texto.lower()
+
+    def _verificar_relevancia_semantica(
+        noticia_nova,
+        noticia_base
+    ) -> float:
+
+        nlp = spacy.load("pt_core_news_md")
+
+        try:
+            doc1 = nlp(noticia_nova)
+            doc2 = nlp(noticia_base)
+            return doc1.similarity(doc2)
+
+        except Exception as e:
+            print(
+                f"Erro ao calcular similaridade semântica: {e}")
+            raise
+
+    def _verificar_relevancia_titulo(
+        self,
+        titulo,
+        palavras_chave,
+        limite=80
+    ):
+        try:
+            titulo = self._limpar_texto(titulo)
+            return any(term.lower() in titulo for term in palavras_chave)
+
+        except Exception as e:
+            print(
+                f"Problema ao testar a relevância dos títulos: {e}")
+            raise
+
+    def _verificar_relevancia_termos(
+        self,
+        noticia_nova,
+        palavras_chave,
+        limite=0.01
+    ):
+        try:
+            if isinstance(noticia_nova, str):
+                texto_splitado = noticia_nova.lower().split()
+                total_palavras = len(noticia_nova.lower().split())
+                ocorrencias = sum(texto_splitado.count(term.lower())
+                                  for term in palavras_chave)
+                freq_relativa = ocorrencias / max(total_palavras, 1)
+
+                return freq_relativa >= limite
+
+        except Exception as e:
+            print(
+                f"Houve um problema ao verificar a relevância de termos da notícia. Erro: {e}")
+            raise
+
+    def built_in_test_curadoria(
+            self,
+    ):
+
+        termos = carregar_lista_json("config/sinonimos_empresas.json")
+        noticias = carregar_lista_json("config/noticias_teste.json")
+        base_ref = carregar_lista_json("config/textos_base.json")
+
+        for i, noticia in enumerate(noticias):
+            print(f"\n🔎 Notícia {i+1}: {noticia['titulo']}")
+
+            titulo = noticia['titulo']
+            corpo = noticia['corpo']
+            esperado = noticia['esperado']
+
+            resultado = self.noticia_e_relevante(
+                titulo, corpo, termos, base_ref)
+
+            print(f"Resultado esperdo: {esperado}")
+            print(f"Resultado Real: {resultado}")
+
+    def noticia_e_relevante(
+        self,
+        titulo: str,
+        noticia_nova: str,
+        termos_empresa: str,
+        noticia_base: str
+    ) -> bool:
+
+        try:
+            noticia_nova_limpa = self._limpar_texto(noticia_nova)
+
+            noticia_base_limpa = self._limpar_texto(noticia_base)
+
+            relevante_por_termos = self._verificar_relevancia_termos(
+                noticia_nova=noticia_nova_limpa, palavras_chave=termos_empresa)
+
+            relevancia_semantica = self._verificar_relevancia_semantica(
+                noticia_nova_limpa, noticia_base_limpa)
+
+            titulo_relevante = self._verificar_relevancia_titulo(
+                titulo=titulo, palavras_chave=termos_empresa)
+
+            condicao1 = ((titulo_relevante and relevante_por_termos)
+                         and relevancia_semantica > 0.60)
+            condicao2 = ((titulo_relevante or relevante_por_termos)
+                         and relevancia_semantica > 0.85)
+            condicao3 = ((titulo_relevante or relevante_por_termos)
+                         and relevancia_semantica > 0.90)
+
+            if condicao1:
+                return True
+
+            elif condicao2:
+                return True
+
+            elif not condicao3:
+                return True
+
+            else:
+                return False
+
+        except Exception as e:
+            print(
+                f"Houve um problema ao verificar a relevância da notícia {e}")
+
+    def _titulos_sao_similares(self, titulo1, titulo2, limite=80):
+        try:
+            if isinstance(titulo1, str) and isinstance(titulo2, str):
+                return fuzz.token_set_ratio(titulo1.lower(),
+                                            titulo2.lower()) > limite
+
+            return False
+
+        except Exception as e:
+            self.logger.error(
+                f"Problema ao testar a similaridades dos títulos: {e}")
+            raise

@@ -90,11 +90,11 @@ print(texto_base)
 
 
 def _noticia_e_relevante(
-        titulo,
-        noticia_nova,
-        termos_empresa,
-        noticia_base
-):
+        titulo: str,
+        noticia_nova: str,
+        termos_empresa: str,
+        noticia_base: str
+) -> bool:
 
     noticia_nova_limpa = _limpar_texto(noticia_nova)
 
@@ -109,9 +109,9 @@ def _noticia_e_relevante(
     titulo_relevante = _verificar_relevancia_titulo(
         titulo=titulo, palavras_chave=termos_empresa)
 
-    print(titulo_relevante)
-    print(relevante_por_termos)
-    print(relevancia_semantica)
+    print(f"Título Relevante: {titulo_relevante}")
+    print(f"Texto com termos relevantes: {relevante_por_termos}")
+    print(f"Relevância semântica: {relevancia_semantica}")
 
     if (titulo_relevante and relevante_por_termos) and relevancia_semantica > 0.60:
         return True
@@ -176,8 +176,8 @@ def testar_matriz(
 
         resultado = _noticia_e_relevante(titulo, corpo, termos, base_ref)
 
-        print(esperado)
-        print(resultado)
+        print(f"Resultado esperdo: {esperado}")
+        print(f"Resultado Real: {resultado}")
 
 
 testar_matriz(noticias_teste, termos_empresa, texto_base)

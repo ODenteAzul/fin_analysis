@@ -17,14 +17,13 @@ class Curadoria():
         self.conn = conn
         self.cursor = cursor
         self.table_checker = table_checker
-
-    sin_dict = carregar_lista_json("config/sinonimos_empresas.json")
-    base_news = carregar_lista_json("config/textos_base.json")
+        self.sin_dict = carregar_lista_json("config/sinonimos_empresas.json")
+        self.base_news = carregar_lista_json("config/textos_base.json")
 
     def _limpar_texto(
-        texto=""
+        texto: str
     ) -> str:
-        if texto == "":
+        if not texto:
             raise ValueError("Nenhum texto enviado para limpeza...")
 
         texto = unicodedata.normalize('NFKD', texto).encode(
@@ -34,8 +33,9 @@ class Curadoria():
         return texto.lower()
 
     def _verificar_relevancia_semantica(
-        noticia_nova,
-        noticia_base
+        self,
+        noticia_nova: str,
+        noticia_base: str
     ) -> float:
 
         nlp = spacy.load("pt_core_news_md")
@@ -46,31 +46,30 @@ class Curadoria():
             return doc1.similarity(doc2)
 
         except Exception as e:
-            print(
+            self.logger.info(
                 f"Erro ao calcular similaridade semântica: {e}")
             raise
 
     def _verificar_relevancia_titulo(
         self,
-        titulo,
-        palavras_chave,
-        limite=80
+        titulo: str,
+        palavras_chave: list
     ):
         try:
             titulo = self._limpar_texto(titulo)
             return any(term.lower() in titulo for term in palavras_chave)
 
         except Exception as e:
-            print(
+            self.logger.info(
                 f"Problema ao testar a relevância dos títulos: {e}")
             raise
 
     def _verificar_relevancia_termos(
         self,
-        noticia_nova,
-        palavras_chave,
-        limite=0.01
-    ):
+        noticia_nova: str,
+        palavras_chave: list,
+        limite: float = 0.01
+    ) -> bool:
         try:
             if isinstance(noticia_nova, str):
                 texto_splitado = noticia_nova.lower().split()
@@ -82,11 +81,12 @@ class Curadoria():
                 return freq_relativa >= limite
 
         except Exception as e:
-            print(
-                f"Houve um problema ao verificar a relevância de termos da notícia. Erro: {e}")
+            self.logger.info(
+                f"""Houve um problema ao verificar a
+                relevância de termos da notícia. Erro: {e}""")
             raise
 
-    def built_in_test_curadoria(
+    def testar_curadoria(
             self,
     ):
 
@@ -95,7 +95,7 @@ class Curadoria():
         base_ref = carregar_lista_json("config/textos_base.json")
 
         for i, noticia in enumerate(noticias):
-            print(f"\n🔎 Notícia {i+1}: {noticia['titulo']}")
+            self.logger.info(f"\n🔎 Notícia {i+1}: {noticia['titulo']}")
 
             titulo = noticia['titulo']
             corpo = noticia['corpo']
@@ -104,8 +104,8 @@ class Curadoria():
             resultado = self.noticia_e_relevante(
                 titulo, corpo, termos, base_ref)
 
-            print(f"Resultado esperdo: {esperado}")
-            print(f"Resultado Real: {resultado}")
+            self.logger.info(f"Resultado esperdo: {esperado}")
+            self.logger.info(f"Resultado Real: {resultado}")
 
     def noticia_e_relevante(
         self,

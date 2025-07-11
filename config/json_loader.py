@@ -10,4 +10,5 @@ def carregar_lista_json(caminho_arquivo):
 
     except Exception as e:
         logging.error(
-            f"Não foi possível extrair os dados do aquivo:{caminho_arquivo}, erro: {e}")
+            f"""Não foi possível extrair os dados do
+            aquivo:{caminho_arquivo}, erro: {e}""")

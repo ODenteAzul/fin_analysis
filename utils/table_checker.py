@@ -1,25 +1,23 @@
-import pandas as pd
-from datetime import datetime, timedelta
-from dateutil.relativedelta import relativedelta
-
 
 class TableChecker():
     def __init__(self,
                  logger,
                  db,
                  conn,
-                 cursor):
+                 cursor,
+                 ddl_creator):
         self.logger = logger
         self.db = db
         self.conn = conn
         self.cursor = cursor
+        self.ddl_creator = ddl_creator
 
     def check_tables(self):
 
         try:
 
             self.logger.info(
-                f"Iniciando verificação das tabelas e SCHEMAS...")
+                "Iniciando verificação das tabelas e SCHEMAS...")
 
             # -- Criação dos Schemas
             query = "CREATE SCHEMA IF NOT EXISTS silver;"
@@ -217,7 +215,7 @@ class TableChecker():
 
             self.db.executa_query(query, commit=True)
 
-            # -- Versões gold (tabelas preparadas, normalizadas e prontas para consumo/ML)
+            # -- Versões gold:(tabelas preparadas, normalizadas e prontas para consumo/ML)
             query = """
             CREATE TABLE IF NOT EXISTS gold.macro_indicadores (
                 data DATE PRIMARY KEY,
@@ -261,7 +259,7 @@ class TableChecker():
             self.db.executa_query(query, commit=True)
 
             query = """
-            CREATE TABLE IF NOT EXISTS silver.cotacao_pregao (
+            CREATE TABLE IF NOT EXISTS silver.cotacao_intra_diario (
                 datatime timestamptz,
                 ativo TEXT NOT NULL,
                 preco_abertura NUMERIC,
@@ -278,7 +276,7 @@ class TableChecker():
             self.db.executa_query(query, commit=True)
 
             self.logger.info(
-                f"Tabelas e SCHEMAS verificadas com sucesso!")
+                "Tabelas e SCHEMAS verificadas com sucesso!")
 
         except Exception as e:
             self.logger.error(

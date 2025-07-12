@@ -1,9 +1,12 @@
 from utils.ddl_loader import CriadorDDL
+from config.json_loader import carregar_lista_json
 
 loader = CriadorDDL("sql/ddl")
 
-template = loader.load_template("cotacao_diaria.sql")
-rendered_sql = loader.render_template(
-    template, camada="silver", tabela="cambio_diario_dolar")
+ls_moedas = carregar_lista_json("config/moedas.json")
 
-print(rendered_sql)
+for moeda in ls_moedas:
+    template = loader.load_template("cotacao_diaria.sql")
+    rendered_sql = loader.render_template(
+        template, camada="silver", tabela=moeda["tabela"])
+    print(rendered_sql)

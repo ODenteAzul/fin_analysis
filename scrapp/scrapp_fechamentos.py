@@ -12,8 +12,6 @@ class ScrappIndices():
     def __init__(self,
                  logger,
                  db,
-                 conn,
-                 cursor,
                  table_checker,
                  controle):
         self.logger = logger

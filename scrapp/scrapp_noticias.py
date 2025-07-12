@@ -15,14 +15,12 @@ class ScrappingNoticias():
     def __init__(self,
                  logger,
                  db,
-                 conn,
-                 cursor,
-                 table_checker):
+                 table_checker,
+                 ddl_creator):
         self.logger = logger
         self.db = db
-        self.conn = conn
-        self.cursor = cursor
         self.table_checker = table_checker
+        self.ddl_creator = ddl_creator
 
     def _converter_para_nativo(df):
         """

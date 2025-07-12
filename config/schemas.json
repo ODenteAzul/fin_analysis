@@ -1,7 +1,5 @@
 [
-    {
-        "meta": "meta",
-        "silver": "silver",
-        "gold": "gold"
-    }
+    "meta",
+    "silver",
+    "gold"
 ]

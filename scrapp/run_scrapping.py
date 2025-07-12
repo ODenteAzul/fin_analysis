@@ -1,6 +1,9 @@
 from scrapp.scrapp_noticias import ScrappingNoticias
 from scrapp.scrapp_fechamentos import ScrappIndices
 from scrapp.scrapp_cotacoes_intra import ScrappIntra
+from utils.ddl_loader import CriadorDDL
+from utils.conn_pg import PostGreSQL
+from utils.table_checker import TableChecker
 
 from zoneinfo import ZoneInfo
 from datetime import datetime
@@ -9,21 +12,28 @@ from datetime import datetime
 class ScrapperRun():
     def __init__(self,
                  logger,
-                 db,
-                 conn,
-                 cursor,
-                 table_checker,
                  controle):
         self.logger = logger
-        self.db = db
-        self.conn = conn
-        self.cursor = cursor
-        self.table_checker = table_checker
         self.controle = controle
 
     def executa_scrapping(self):
 
         try:
+
+            # Obtendo a conexão com o PostgreSQL
+            db = PostGreSQL(logger=self.logger)
+            db.conectar()
+
+            # criação dinâmica de SQL
+            ddl_creator = CriadorDDL("sql/ddl")
+
+            # verificação de tabelas e controle de meta dados
+            table_checker = TableChecker(
+                self.logger,
+                db,
+                ddl_creator
+            )
+
             tz_brasil = ZoneInfo("America/Sao_Paulo")
             hora_inicio = datetime.now(tz=tz_brasil)
 
@@ -36,7 +46,7 @@ class ScrapperRun():
             """
             self.logger.info(title)
 
-            self.table_checker.check_tables()
+            table_checker.check_tables()
 
             if self.controle == 'news':
                 title = r"""
@@ -56,10 +66,10 @@ class ScrapperRun():
 
                 scrap = ScrappingNoticias(
                     logger=self.logger,
-                    db=self.db,
-                    conn=self.conn,
-                    cursor=self.cursor,
-                    table_checker=self.table_checker)
+                    db=db,
+                    table_checker=table_checker,
+                    ddl_creator=ddl_creator
+                )
 
                 # scrap.busca_noticias_historicas()
 
@@ -86,11 +96,11 @@ class ScrapperRun():
 
                 scrap_f = ScrappIndices(
                     logger=self.logger,
-                    db=self.db,
-                    conn=self.conn,
-                    cursor=self.cursor,
-                    table_checker=self.table_checker,
-                    controle=self.controle)
+                    controle=self.controle,
+                    db=db,
+                    table_checker=table_checker,
+                    ddl_creator=ddl_creator
+                )
 
                 scrap_f.colheira_diaria()
 
@@ -113,10 +123,10 @@ class ScrapperRun():
 
                 scrap_intra = ScrappIntra(
                     logger=self.logger,
-                    db=self.db,
-                    conn=self.conn,
-                    cursor=self.cursor,
-                    table_checker=self.table_checker)
+                    db=db,
+                    table_checker=table_checker,
+                    ddl_creator=ddl_creator
+                )
 
                 scrap_intra.colheita_cotacao_atual()
 
@@ -124,6 +134,8 @@ class ScrapperRun():
                 self.logger.info(
                     f"""Busca de dados de cotação:
                     Terminada com sucesso em : {hora_fim-hora_inicio}""")
+
+            db.fechar_conexao()
 
         except Exception as e:
             self.logger.error(

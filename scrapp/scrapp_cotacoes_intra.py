@@ -10,13 +10,9 @@ class ScrappIntra():
     def __init__(self,
                  logger,
                  db,
-                 conn,
-                 cursor,
                  table_checker):
         self.logger = logger
         self.db = db
-        self.conn = conn
-        self.cursor = cursor
         self.table_checker = table_checker
 
     def _to_float(self, valor):

@@ -1,16 +1,41 @@
+from config.json_loader import carregar_lista_json
+from datetime import datetime
+
 
 class TableChecker():
     def __init__(self,
                  logger,
                  db,
-                 conn,
-                 cursor,
                  ddl_creator):
         self.logger = logger
         self.db = db
-        self.conn = conn
-        self.cursor = cursor
         self.ddl_creator = ddl_creator
+
+    def table_writer(self, camada="", tabela="", sql_file=""):
+        """
+            Renderiza e executa um template SQL com os parâmetros fornecidos.
+
+            Args:
+                 camada (str): Schema destino (obrigatório).
+                sql_file (str): Caminho relativo ao template SQL (obrigatório).
+                tabela (str): Nome da tabela, se aplicável (opcional).
+        """
+
+        if not camada:
+            raise ValueError(
+                "O atributo 'camada' não pode estar vazio.")
+        if not sql_file:
+            raise ValueError(
+                "O atributo 'sql_file' não pode estar vazio.")
+
+        template = self.ddl_creator.load_template(sql_file)
+
+        params = {"camada": camada}
+        if tabela:
+            params["tabela"] = tabela
+
+        query = self.ddl_creator.render_template(template, **params)
+        self.db.executa_query(query, commit=True)
 
     def check_tables(self):
 
@@ -20,260 +45,93 @@ class TableChecker():
                 "Iniciando verificação das tabelas e SCHEMAS...")
 
             # -- Criação dos Schemas
-            query = "CREATE SCHEMA IF NOT EXISTS silver;"
 
-            self.db.executa_query(query, commit=True)
+            ls_schemas = carregar_lista_json("config/schemas.json")
 
-            query = "CREATE SCHEMA IF NOT EXISTS gold;"
+            for schema in ls_schemas:
 
-            self.db.executa_query(query, commit=True)
+                self.logger.info(
+                    f"Criando/verificando schema: {schema}")
 
-            query = "CREATE SCHEMA IF NOT EXISTS meta;"
+                self.table_writer(
+                    camada=schema,
+                    sql_file="schema.sql")
 
-            self.db.executa_query(query, commit=True)
+            # Cotação diária Moedas
 
-            # -- Tabela: Dólar diário (coleta diária)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.cambio_diario_yuan (
-                data DATE PRIMARY KEY,
-                par_moeda TEXT NOT NULL,
-                bid NUMERIC,
-                ask NUMERIC,
-                high NUMERIC,
-                low NUMERIC,
-                var_bid NUMERIC,
-                pct_change NUMERIC,
-                preco_medio NUMERIC,
-                spread NUMERIC,
-                amplitude_pct NUMERIC,
-                fechamento_anterior NUMERIC,
-                var_dia_real NUMERIC,
-                var_dia_pct NUMERIC
-            );"""
+            ls_moedas = carregar_lista_json("config/moedas.json")
 
-            self.db.executa_query(query, commit=True)
+            for moeda in ls_moedas:
 
-            # -- Tabela: Dólar diário (coleta diária)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.cambio_diario_peso (
-                data DATE PRIMARY KEY,
-                par_moeda TEXT NOT NULL,
-                bid NUMERIC,
-                ask NUMERIC,
-                high NUMERIC,
-                low NUMERIC,
-                var_bid NUMERIC,
-                pct_change NUMERIC,
-                preco_medio NUMERIC,
-                spread NUMERIC,
-                amplitude_pct NUMERIC,
-                fechamento_anterior NUMERIC,
-                var_dia_real NUMERIC,
-                var_dia_pct NUMERIC
-            );"""
+                self.logger.info(
+                    f"Criando/verificando tabela: silver.{moeda['tabela']}")
+                self.table_writer(
+                    camada="silver",
+                    tabela=moeda["tabela"],
+                    sql_file="cotacao_diaria.sql")
 
-            self.db.executa_query(query, commit=True)
+            # INDICES/INDICADORES
 
-            # -- Tabela: Dólar diário (coleta diária)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.cambio_diario_libra (
-                data DATE PRIMARY KEY,
-                par_moeda TEXT NOT NULL,
-                bid NUMERIC,
-                ask NUMERIC,
-                high NUMERIC,
-                low NUMERIC,
-                var_bid NUMERIC,
-                pct_change NUMERIC,
-                preco_medio NUMERIC,
-                spread NUMERIC,
-                amplitude_pct NUMERIC,
-                fechamento_anterior NUMERIC,
-                var_dia_real NUMERIC,
-                var_dia_pct NUMERIC
-            );"""
+            ls_indices = carregar_lista_json("config/indicadores.json")
 
-            self.db.executa_query(query, commit=True)
+            for indice in ls_indices:
 
-            # -- Tabela: Dólar diário (coleta diária)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.cambio_diario_euro (
-                data DATE PRIMARY KEY,
-                par_moeda TEXT NOT NULL,
-                bid NUMERIC,
-                ask NUMERIC,
-                high NUMERIC,
-                low NUMERIC,
-                var_bid NUMERIC,
-                pct_change NUMERIC,
-                preco_medio NUMERIC,
-                spread NUMERIC,
-                amplitude_pct NUMERIC,
-                fechamento_anterior NUMERIC,
-                var_dia_real NUMERIC,
-                var_dia_pct NUMERIC
-            );"""
+                self.logger.info(
+                    f"Criando/verificando tabela: silver.{indice['tabela']}")
+                self.table_writer(
+                    camada="silver",
+                    tabela=indice["tabela"],
+                    sql_file="indice.sql")
 
-            self.db.executa_query(query, commit=True)
+            # JUROS EUA
 
-            # -- Tabela: Dólar diário (coleta diária)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.cambio_diario_dolar (
-                data DATE PRIMARY KEY,
-                par_moeda TEXT NOT NULL,
-                bid NUMERIC,
-                ask NUMERIC,
-                high NUMERIC,
-                low NUMERIC,
-                var_bid NUMERIC,
-                pct_change NUMERIC,
-                preco_medio NUMERIC,
-                spread NUMERIC,
-                amplitude_pct NUMERIC,
-                fechamento_anterior NUMERIC,
-                var_dia_real NUMERIC,
-                var_dia_pct NUMERIC
-            );"""
+            ls_juros = carregar_lista_json("config/juros_eua.json")
 
-            self.db.executa_query(query, commit=True)
+            for indice in ls_juros:
 
-            # -- Tabela: SELIC (coleta diária ou mensal, dependendo da fonte)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.selic (
-                data DATE PRIMARY KEY,
-                valor NUMERIC
-            );"""
-
-            self.db.executa_query(query, commit=True)
-
-            # -- Tabela: cdi (coleta diária ou mensal, dependendo da fonte)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.cdi (
-                data DATE PRIMARY KEY,
-                valor NUMERIC
-            );"""
-
-            self.db.executa_query(query, commit=True)
-
-            # -- Tabela: igpm (coleta diária ou mensal, dependendo da fonte)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.igpm (
-                data DATE PRIMARY KEY,
-                valor NUMERIC
-            );"""
-
-            self.db.executa_query(query, commit=True)
-
-            # -- Tabela: IPCA (índice de preços ao consumidor - mensal)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.ipca (
-                data DATE PRIMARY KEY,
-                valor NUMERIC
-            );"""
-
-            self.db.executa_query(query, commit=True)
-
-            # -- Tabela: PIB (trimestral ou anual, dependendo da granularidade)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.pib_trimestral (
-                data DATE PRIMARY KEY,
-                valor NUMERIC
-            );"""
-
-            self.db.executa_query(query, commit=True)
-
-            # -- Tabela: Juros EUA (Fed Funds Rate - coleta mensal)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.juros_usa_fedfunds (
-                data DATE PRIMARY KEY,
-                valor NUMERIC
-            );"""
-
-            self.db.executa_query(query, commit=True)
-
-            # -- Tabela: Juros EUA (Fed Funds Rate - coleta diária)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.juros_usa_effr (
-                data DATE PRIMARY KEY,
-                valor NUMERIC
-            );"""
-
-            self.db.executa_query(query, commit=True)
+                self.logger.info(
+                    f"Criando/verificando tabela: silver.{indice['tabela']}")
+                self.table_writer(
+                    camada="silver",
+                    tabela=indice["tabela"],
+                    sql_file="indice.sql")
 
             # -- Tabela: Ibovespa (índice diário de fechamento)
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.ibovespa_diario (
-                data DATE PRIMARY KEY,
-                preco_abertura NUMERIC,
-                preco_minimo NUMERIC,
-                preco_maximo NUMERIC,
-                preco_fechamento NUMERIC,
-                volume_negociado NUMERIC,
-                media_movel_50 NUMERIC,
-                media_movel_200 NUMERIC
-            );"""
+            self.logger.info(
+                "Criando/verificando tabela: silver.ibovespa_diario")
 
-            self.db.executa_query(query, commit=True)
+            self.table_writer(
+                camada="silver",
+                tabela="ibovespa_diario",
+                sql_file="ibovespa_diario.sql")
 
-            # -- Versões gold:(tabelas preparadas, normalizadas e prontas para consumo/ML)
-            query = """
-            CREATE TABLE IF NOT EXISTS gold.macro_indicadores (
-                data DATE PRIMARY KEY,
-                selic NUMERIC,
-                ipca NUMERIC,
-                pib NUMERIC,
-                juros_usa NUMERIC,
-                dolar NUMERIC,
-                ibovespa NUMERIC
-            );"""
+            # NOTICIAS
+            self.logger.info(
+                "Criando/verificando tabela: silver.noticias")
 
-            self.db.executa_query(query, commit=True)
+            self.table_writer(
+                camada="silver",
+                tabela="noticias",
+                sql_file="noticias.sql")
 
-            # -- Versões meta (Controle de tabelas populadas ou não)
-            query = """
-            CREATE TABLE IF NOT EXISTS meta.controle_populacao (
-                schema_nome     TEXT NOT NULL,
-                tabela_nome     TEXT NOT NULL,
-                nome_serie      TEXT NOT NULL,
-                carga_inicial DATE,
-                ultima_execucao DATE,
-                proxima_execucao DATE,
-                observacao      TEXT,
-                PRIMARY KEY (schema_nome, tabela_nome)
-            );"""
+            # Cotações INTRA DIARIO
+            self.logger.info(
+                "Criando/verificando tabela: silver.cotacao_intra_diario")
 
-            self.db.executa_query(query, commit=True)
+            self.table_writer(
+                camada="silver",
+                tabela="cotacao_intra_diario",
+                sql_file="cotacao_intra_diario.sql")
 
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.noticias (
-                id SERIAL PRIMARY KEY,
-                cod_bolsa TEXT,
-                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                titulo TEXT,
-                descricao TEXT,
-                data_historico DATE NOT NULL,
-                url TEXT,
-                sentimento TEXT);
-            """
+            # Versões gold:(tabelas preparadas, normalizadas
+            # e prontas para consumo/ML)
+            self.logger.info(
+                "Criando/verificando tabela: gold.macro_indicadores")
 
-            self.db.executa_query(query, commit=True)
-
-            query = """
-            CREATE TABLE IF NOT EXISTS silver.cotacao_intra_diario (
-                datatime timestamptz,
-                ativo TEXT NOT NULL,
-                preco_abertura NUMERIC,
-                preco_minimo NUMERIC,
-                preco_maximo NUMERIC,
-                preco_fechamento NUMERIC,
-                volume_negociado NUMERIC,
-                media_movel_50 NUMERIC,
-                media_movel_200 NUMERIC,
-                origem TEXT NOT NULL,
-                PRIMARY KEY (ativo, datatime)
-            );"""
-
-            self.db.executa_query(query, commit=True)
+            self.table_writer(
+                camada="gold",
+                tabela="macro_indicadores",
+                sql_file="macro_indicadores.sql")
 
             self.logger.info(
                 "Tabelas e SCHEMAS verificadas com sucesso!")
@@ -301,9 +159,19 @@ class TableChecker():
             self.logger.error(
                 f"Não foi possível verificar as tabelas: {e}")
 
-    def register_populated(self, camada, tabela, nome_serie, inicial, data_exec, prox_data, obs):
+    def register_populated(
+        self,
+        camada,
+        tabela,
+        nome_serie,
+        inicial,
+        data_exec,
+        prox_data,
+        obs
+    ):
         """
-        Registra ou atualiza o status de população de uma tabela no schema 'meta'.
+        Registra ou atualiza o status de população
+        de uma tabela no schema 'meta'.
 
         Parameters
         ----------
@@ -323,7 +191,14 @@ class TableChecker():
             f"Atualizando informações sobre população para {camada}.{tabela}")
 
         query = """
-                INSERT INTO meta.controle_populacao (schema_nome, tabela_nome, nome_serie, carga_inicial, ultima_execucao, proxima_execucao, observacao) 
+                INSERT INTO meta.controle_populacao (
+                schema_nome,
+                tabela_nome,
+                nome_serie,
+                carga_inicial,
+                ultima_execucao,
+                proxima_execucao,
+                observacao) 
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (schema_nome, tabela_nome)
                 DO UPDATE SET
@@ -343,12 +218,14 @@ class TableChecker():
 
         except Exception as e:
             self.logger.error(
-                f"Erro ao atualizar/inserir dados sobre tabelas populadas em: {camada}.{tabela}. Detalhes: {e}")
+                f"""Erro ao atualizar/inserir dados sobre
+                tabelas populadas em: {camada}.{tabela}. Detalhes: {e}""")
         return False
 
     def last_pop(self, camada, tabela, nome_serie):
         """
-        Verifica se a tabela já foi populada com base no controle em meta.controle_populacao.
+        Verifica se a tabela já foi populada com
+        base no controle em meta.controle_populacao.
 
         args:
             camada: str = o nome da camada = 'silver' ou 'gold'
@@ -360,7 +237,8 @@ class TableChecker():
             return: bool or None
         """
 
-        query = f"SELECT proxima_execucao FROM {camada}.{tabela} WHERE nome_serie = %s;"
+        query = f"""SELECT proxima_execucao 
+        FROM {camada}.{tabela} WHERE nome_serie = %s;"""
         valores = (nome_serie,)
 
         try:
@@ -376,5 +254,6 @@ class TableChecker():
 
         except Exception as e:
             self.logger.error(
-                f"Falha ao validar população de {camada}.{tabela}. Detalhes: {e}")
+                f"""Falha ao validar população
+                de {camada}.{tabela}. Detalhes: {e}""")
             return None

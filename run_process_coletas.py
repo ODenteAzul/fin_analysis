@@ -3,9 +3,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from utils.utils import LoggerCustomizado
-from utils.conn_pg import PostGreSQL
 from scrapp.run_scrapping import ScrapperRun
-from utils.table_checker import TableChecker
 
 
 def run_processes(controle=None):
@@ -31,24 +29,10 @@ def run_processes(controle=None):
         hora_inicio = datetime.now(tz=tz_brasil)
         hora_inicio_geral = datetime.now(tz=tz_brasil)
 
-        # Obtendo a conexão com o PostgreSQL
-        db = PostGreSQL(logger=log)
-        conn, cursor = db.conectar()
-
-        # verificação de tabelas e meta dados
-        table_checker = TableChecker(log,
-                                     db,
-                                     conn,
-                                     cursor)
-
         log.info(f"Iniciando o processamento: '{hora_inicio_geral}'")
         log.info("Scrapping de informações...")
 
         go_scrapp = ScrapperRun(log,
-                                db,
-                                conn,
-                                cursor,
-                                table_checker,
                                 controle)
 
         go_scrapp.executa_scrapping()
@@ -56,8 +40,6 @@ def run_processes(controle=None):
         end_time = datetime.now(tz=tz_brasil)
         log.info(
             f"Scrapping finalizado com sucesso em: {end_time - hora_inicio}")
-
-        db.fechar_conexao()
 
         end_time = datetime.now(tz=tz_brasil)
         log.info(f"Processamento finalizado em: {end_time - hora_inicio}")

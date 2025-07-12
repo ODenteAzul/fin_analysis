@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS {camda}.{tabela} (
+CREATE TABLE IF NOT EXISTS {camada}.{tabela} (
                 data DATE PRIMARY KEY,
                 selic NUMERIC,
                 ipca NUMERIC,

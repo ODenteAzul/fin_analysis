@@ -198,7 +198,7 @@ class TableChecker():
                 carga_inicial,
                 ultima_execucao,
                 proxima_execucao,
-                observacao) 
+                observacao)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (schema_nome, tabela_nome)
                 DO UPDATE SET
@@ -237,7 +237,7 @@ class TableChecker():
             return: bool or None
         """
 
-        query = f"""SELECT proxima_execucao 
+        query = f"""SELECT proxima_execucao
         FROM {camada}.{tabela} WHERE nome_serie = %s;"""
         valores = (nome_serie,)
 

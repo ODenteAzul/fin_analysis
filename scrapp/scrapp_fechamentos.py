@@ -13,13 +13,13 @@ class ScrappIndices():
                  logger,
                  db,
                  table_checker,
-                 controle):
+                 controle,
+                 ddl_creator):
         self.logger = logger
         self.db = db
-        self.conn = conn
-        self.cursor = cursor
         self.table_checker = table_checker
         self.controle = controle
+        self.ddl_creator = ddl_creator
 
     def _to_float(self, valor):
         try:

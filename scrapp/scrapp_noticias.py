@@ -143,59 +143,6 @@ class ScrappingNoticias():
         except Exception as e:
             print(f"Erro ao obter o texto da notícia: {e}")
 
-        #    options = webdriver.ChromeOptions()
-        #    options.add_argument("--headless")
-        #    options.add_argument("--disable-gpu")
-            # Evita fallback problemático
-        #    options.add_argument("--disable-software-rasterizer")
-            # Remove possíveis conflitos de extensões
-        #    options.add_argument("--disable-extensions")
-            # Corrige problemas de memória compartilhada
-        #    options.add_argument("--disable-dev-shm-usage")
-        #    options.add_argument("--disable-popup-blocking")
-        #    options.add_argument("--ignore-certificate-errors")
-        #    options.add_argument(
-        #       "--disable-blink-features=AutomationControlled")
-
-        #   driver = webdriver.Chrome(options=options)
-        #    driver.get(url)
-        #    try:
-        #        WebDriverWait(driver, 3).until(
-        #            # Confirme o nome correto da classe
-        #            EC.presence_of_element_located(
-        #                 (By.CLASS_NAME, "article-content"))
-        #         )
-            # Pega HTML após renderização
-        #        html = driver.execute_script(
-        #            "return document.documentElement.outerHTML")
-        #    except Exception as e:
-        #        self.logger.error(
-        #           f"Erro ao esperar carregamento via Selenium: {e}")
-        # html = None
-        #    driver.quit()
-
-        #    if not html or html.strip() == "":
-        #        self.logger.error(
-        #            "Erro crítico: HTML vazio. Nenhum conteúdo extraído.")
-        #        return " "
-
-        # soup = BeautifulSoup(html, "html.parser")
-        #  container = soup.find("div", class_="article-content")
-        #  if not container:
-            # Testa variação de nome do elemento
-        #       container = soup.find("div", class_="post-content")
-
-        #   article_body = container.find_all("p") if container else []#3
-
-        #    texto_noticia = " "  # Inicializa com um valor seguro
-
-        #    if article_body:
-        #        texto_noticia = " ".join(
-        #            [p.get_text() for p in article_body])
-        # if article_body else " "
-
-        #   texto_noticia = texto_noticia.strip() if texto_noticia else " "
-
         # Limpeza do texto extraído
         if texto_noticia:
             # Remove espaços extras
@@ -447,10 +394,11 @@ class ScrappingNoticias():
                         if len(noticias_salvas) > 0:
 
                             if self._verificar_noticia(
-                                    titulo,
-                                    conteudo,
-                                    noticias_salvas,
-                                    tik['tabela']):
+                                titulo,
+                                conteudo,
+                                noticias_salvas,
+                                tik['tabela']
+                            ):
 
                                 noticia = {
                                     "titulo": titulo,

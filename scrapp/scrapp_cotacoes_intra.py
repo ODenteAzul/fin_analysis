@@ -10,10 +10,12 @@ class ScrappIntra():
     def __init__(self,
                  logger,
                  db,
-                 table_checker):
+                 table_checker,
+                 ddl_creator):
         self.logger = logger
         self.db = db
         self.table_checker = table_checker
+        self.ddl_creator = ddl_creator
 
     def _to_float(self, valor):
         try:

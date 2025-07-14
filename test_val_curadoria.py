@@ -8,10 +8,13 @@ sin_dict = carregar_lista_json("config/sinonimos_empresas.json")
 base_news = carregar_lista_json("config/textos_base.json")
 
 
-def _limpar_texto(texto):
+def _limpar_texto(
+    texto
+):
     texto = unicodedata.normalize('NFKD', texto).encode(
         'ASCII', 'ignore').decode('ASCII')
     texto = re.sub(r'[^\w\s]', '', texto)
+    texto = re.sub(r'\s+', ' ', texto)
     return texto.lower()
 
 
@@ -30,8 +33,8 @@ def _titulos_sao_similares(self, titulo1, titulo2, limite=80):
 
 
 def _verificar_relevancia_semantica(
-        noticia_nova,
-        noticia_base
+    noticia_nova,
+    noticia_base
 ):
 
     nlp = spacy.load("pt_core_news_md")
@@ -47,9 +50,8 @@ def _verificar_relevancia_semantica(
 
 
 def _verificar_relevancia_titulo(
-        titulo,
-        palavras_chave,
-        limite=80
+    titulo,
+    palavras_chave
 ):
     try:
         titulo = _limpar_texto(titulo)
@@ -62,9 +64,9 @@ def _verificar_relevancia_titulo(
 
 
 def _verificar_relevancia_termos(
-        noticia_nova,
-        palavras_chave,
-        limite=0.01
+    noticia_nova,
+    palavras_chave,
+    limite=0.01
 ):
     try:
         if isinstance(noticia_nova, str):
@@ -90,10 +92,10 @@ print(texto_base)
 
 
 def _noticia_e_relevante(
-        titulo: str,
-        noticia_nova: str,
-        termos_empresa: str,
-        noticia_base: str
+    titulo: str,
+    noticia_nova: str,
+    termos_empresa: str,
+    noticia_base: str
 ) -> bool:
 
     noticia_nova_limpa = _limpar_texto(noticia_nova)
@@ -162,7 +164,7 @@ noticias_teste = [
 ]
 
 
-def testar_matriz(
+def testar_noticias(
         noticias,
         termos,
         base_ref,
@@ -180,4 +182,4 @@ def testar_matriz(
         print(f"Resultado Real: {resultado}")
 
 
-testar_matriz(noticias_teste, termos_empresa, texto_base)
+testar_noticias(noticias_teste, termos_empresa, texto_base)

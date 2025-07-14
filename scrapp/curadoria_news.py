@@ -9,16 +9,13 @@ class Curadoria():
     def __init__(self,
                  logger,
                  db,
-                 conn,
-                 cursor,
                  table_checker):
         self.logger = logger
         self.db = db
-        self.conn = conn
-        self.cursor = cursor
         self.table_checker = table_checker
         self.sin_dict = carregar_lista_json("config/sinonimos_empresas.json")
         self.base_news = carregar_lista_json("config/textos_base.json")
+        self.news_data = spacy.load("pt_core_news_md")
 
     def _limpar_texto(
         texto: str
@@ -29,6 +26,7 @@ class Curadoria():
         texto = unicodedata.normalize('NFKD', texto).encode(
             'ASCII', 'ignore').decode('ASCII')
         texto = re.sub(r'[^\w\s]', '', texto)
+        texto = re.sub(r'\s+', ' ', texto)
 
         return texto.lower()
 
@@ -38,7 +36,7 @@ class Curadoria():
         noticia_base: str
     ) -> float:
 
-        nlp = spacy.load("pt_core_news_md")
+        nlp = self.news_data
 
         try:
             doc1 = nlp(noticia_nova)
@@ -133,7 +131,7 @@ class Curadoria():
                          and relevancia_semantica > 0.60)
             condicao2 = ((titulo_relevante or relevante_por_termos)
                          and relevancia_semantica > 0.85)
-            condicao3 = ((titulo_relevante or relevante_por_termos)
+            condicao3 = (not (titulo_relevante or relevante_por_termos)
                          and relevancia_semantica > 0.90)
 
             if condicao1:
@@ -142,7 +140,7 @@ class Curadoria():
             elif condicao2:
                 return True
 
-            elif not condicao3:
+            elif condicao3:
                 return True
 
             else:
@@ -152,7 +150,12 @@ class Curadoria():
             print(
                 f"Houve um problema ao verificar a relevância da notícia {e}")
 
-    def _titulos_sao_similares(self, titulo1, titulo2, limite=80):
+    def _titulos_sao_similares(
+        self,
+        titulo1,
+        titulo2,
+        limite=80
+    ):
         try:
             if isinstance(titulo1, str) and isinstance(titulo2, str):
                 return fuzz.token_set_ratio(titulo1.lower(),

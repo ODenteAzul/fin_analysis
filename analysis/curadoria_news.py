@@ -2,7 +2,7 @@ import spacy
 import unicodedata
 import re
 from fuzzywuzzy import fuzz
-from config.json_loader import carregar_lista_json
+from utils.json_loader import carregar_lista_json
 
 
 class Curadoria():

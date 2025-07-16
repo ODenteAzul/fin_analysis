@@ -1,4 +1,4 @@
-from config.json_loader import carregar_lista_json
+from utils.json_loader import carregar_lista_json
 from datetime import datetime
 
 

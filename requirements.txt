@@ -7,7 +7,6 @@ beautifulsoup4==4.12.3
 psycopg2-binary==2.9.10
 python-Levenshtein==0.27.1
 python-dotenv==1.1.1
-spacy==3.8.7
 
 # Data e agendamento
 apscheduler==3.10.4
@@ -17,10 +16,15 @@ tzdata==2024.1
 # Machine Learning e NLP
 scikit-learn==1.4.2
 fuzzywuzzy==0.18.0
+transformers==4.51.3
+vaderSentiment==3.3.2
+torch==2.7.0
+spacy==3.8.7
 
 # Web e análise de texto
 gdeltdoc==1.12.0
 lxml==5.2.1
+deep_translator==1.11.4
 
-# My lib
+# My lib - collect and parsing JSON from APIs
 jbridgedf==0.1.5

@@ -1,37 +1,92 @@
 [
     {
         "titulo": "Embraer fecha contrato bilionário com Força Aérea dos EUA",
-        "corpo": "A Embraer assinou um contrato com o governo americano para fornecer aeronaves militares. O acordo fortalece a presença da fabricante brasileira no mercado internacional.",
-        "esperado": true
+        "corpo": "A Embraer assinou um contrato com o governo americano para fornecer aeronaves militares. O acordo fortalece o crescimento da fabricante brasileira no mercado internacional e é muito positiva para o país.",
+        "esperado": true,
+        "sentimento": "positivo"
     },
     {
         "titulo": "Gincana infantil promovida pela Embraer reúne moradores em São Bernardo",
         "corpo": "A gigante da aviação distribuiu presentes para as crianças, incentivando a interação entre vizinhos em evento comunitário.",
-        "esperado": false
+        "esperado": false,
+        "sentimento": "neutro"
     },
     {
         "titulo": "Mercado analisa ações da Embraer após divulgação de novos resultados trimestrais",
         "corpo": "Com resultados acima do esperado, a ação da Embraer fechou em alta nesta terça-feira, refletindo a confiança dos investidores.",
-        "esperado": true
+        "esperado": true,
+        "sentimento": "positivo"
     },
     {
         "titulo": "São José dos Campos recebe feira de inovação tecnológica",
         "corpo": "A feira contou com startups locais e algumas grandes empresas da região, como Embraer e Ericsson. O evento atraiu milhares de visitantes.",
-        "esperado": false
+        "esperado": false,
+        "sentimento": "neutro"
     },
     {
         "titulo": "Embraer anuncia novo centro de pesquisa em aviação sustentável",
         "corpo": "A empresa brasileira lançou um novo centro de P&D voltado para tecnologias de aviação verde, com foco em biocombustíveis e eficiência energética.",
-        "esperado": true
+        "esperado": true,
+        "sentimento": "positivo"
     },
     {
         "titulo": "Nem tudo são flores para a Embraer, gigante apresenta resultado abaixo do esperado",
         "corpo": "O primeiro trimestre foi abaixo das projeções para a Embraer, deixando os analistas com um pé atrás. A indústria aeronáutica como um todo apresentou retração em maio e junho e isso prejudicou os resultados. Porém a Embraer afirma ter planos para retomar o crescimento.",
-        "esperado": true
+        "esperado": true,
+        "sentimento": "negativo"
     },
     {
         "titulo": "O setor aeroespacial está em declínio.",
         "corpo": "Esse é um ano difícil para as empresas de aviação. Gigantes do setor como a Airbus e a Boing estão amargando prejuízos e atrasos nas entregas. Também não ajuda a alta de preços em diversos países e a inflação. Algumas fabricantes como a nossa Embraer ainda se mantém firmes, pois atuam no nicho regional, que se mantém aquecido.",
-        "esperado": false
+        "esperado": false,
+        "sentimento": "negativo"
+    },
+    {
+        "titulo": "Embraer lidera ranking de satisfação entre clientes de aviação executiva",
+        "corpo": "Segundo pesquisa anual do setor, a Embraer ficou em primeiro lugar na satisfação dos clientes de jatos executivos, superando concorrentes tradicionais como Gulfstream e Bombardier. Isso reforça o crescimento que a empresa tem tido.",
+        "esperado": true,
+        "sentimento": "positivo"
+    },
+    {
+        "titulo": "Executivos da Embraer se reúnem com ministros para discutir incentivos",
+        "corpo": "A reunião tratou de subsídios à inovação e à cadeia produtiva de aeronaves sustentáveis. Ainda não houve definição oficial sobre novos aportes.",
+        "esperado": false,
+        "sentimento": "positivo"
+    },
+    {
+        "titulo": "Falha técnica em jato da Embraer obriga pouso de emergência",
+        "corpo": "Um jato da Embraer modelo E195 precisou fazer um pouso de emergência após falha em um dos motores. Apesar do susto, ninguém se feriu.",
+        "esperado": true,
+        "sentimento": "negativo"
+    },
+    {
+        "titulo": "Embraer participa de conferência global de aviação em Dubai",
+        "corpo": "A fabricante brasileira apresentou seus modelos mais recentes e debateu tendências de mobilidade aérea urbana durante o evento.",
+        "esperado": false,
+        "sentimento": "neutro"
+    },
+    {
+        "titulo": "Receita líquida da Embraer cresce 25% no segundo trimestre",
+        "corpo": "Os resultados superaram as estimativas dos analistas, puxados por entregas no segmento militar e pela valorização cambial.",
+        "esperado": true,
+        "sentimento": "positivo"
+    },
+    {
+        "titulo": "Sindicato denuncia sobrecarga de trabalho em fábrica da Embraer",
+        "corpo": "Funcionários relataram jornadas exaustivas e atrasos nos pagamentos de benefícios. A empresa diz que está apurando as denúncias.",
+        "esperado": true,
+        "sentimento": "negativo"
+    },
+    {
+        "titulo": "Avião da Embraer é escolhido para transporte de chefes de estado na Europa",
+        "corpo": "O modelo Legacy 600 será usado por três países europeus como aeronave oficial de transporte presidencial, fortalecendo a imagem institucional da empresa.",
+        "esperado": true,
+        "sentimento": "positivo"
+    },
+    {
+        "titulo": "Embraer inaugura centro cultural em homenagem a engenheiros da aviação",
+        "corpo": "O espaço trará exposições e experiências imersivas sobre ciência e história aeronáutica, aberto ao público gratuitamente.",
+        "esperado": false,
+        "sentimento": "neutro"
     }
 ]

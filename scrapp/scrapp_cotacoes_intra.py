@@ -3,7 +3,7 @@ from datetime import time, datetime
 from zoneinfo import ZoneInfo
 from dateutil.relativedelta import relativedelta
 import pandas as pd
-from config.json_loader import carregar_lista_json
+from utils.json_loader import carregar_lista_json
 
 
 class ScrappIntra():

@@ -5,4 +5,6 @@ COPY . .
 
 RUN pip install --no-cache-dir -r requirements.txt
 
+COPY ./models /app/models
+
 CMD ["python", "run_process_coletas.py"]

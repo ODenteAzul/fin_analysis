@@ -2,7 +2,7 @@ import spacy
 import unicodedata
 import re
 from fuzzywuzzy import fuzz
-from config.json_loader import carregar_lista_json
+from utils.json_loader import carregar_lista_json
 
 sin_dict = carregar_lista_json("config/sinonimos_empresas.json")
 base_news = carregar_lista_json("config/textos_base.json")

@@ -5,7 +5,7 @@ from dateutil.relativedelta import relativedelta
 import pandas as pd
 import jbridgedf as jdf
 from config.ambience import EnvConfig
-from config.json_loader import carregar_lista_json
+from utils.json_loader import carregar_lista_json
 
 
 class ScrappIndices():
@@ -788,7 +788,8 @@ class ScrappIndices():
                             query, valores, commit=True, many=True)
 
                         self.logger.info(
-                            f"{nome_serie} histórico obtido e gravado com sucesso.")
+                            f"""{nome_serie} histórico obtido
+                            e gravado com sucesso.""")
 
                         proxima = self._calcula_proxima_execucao(
                             hoje_data, frequencia)
@@ -806,7 +807,7 @@ class ScrappIndices():
                         self.logger.warning(
                             f"{nome_serie}: Nenhum novo dado identificado. \
                             Último no banco: {data_last}, \
-                            último da API: {maior_data} — agendado para retry.")
+                            último da API: {maior_data}, agendado para retry.")
 
                 else:
                     nome_tabela = f"{camada}.{tabela}"

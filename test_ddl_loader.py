@@ -1,5 +1,5 @@
 from utils.ddl_loader import CriadorDDL
-from config.json_loader import carregar_lista_json
+from utils.json_loader import carregar_lista_json
 
 loader = CriadorDDL("sql/ddl")
 

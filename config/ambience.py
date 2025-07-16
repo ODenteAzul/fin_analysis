@@ -9,3 +9,4 @@ class EnvConfig:
     FRED_API_KEY = os.getenv("FRED_API_KEY")
     AWESOME_API_KEY = os.getenv("AWESOME_API_KEY")
     NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+    HUG_FACE = os.getenv("HUG_FACE")
